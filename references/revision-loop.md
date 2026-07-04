@@ -1,10 +1,10 @@
 # Revision loop
 
-Use this flow whenever a frozen baseline already exists. Do not regenerate the full deck by default.
+Use this flow whenever a frozen baseline already exists in `Deck draft/<YYYY-MM-DD>/<deck-title-slug>/baseline/`. Do not regenerate the full deck by default.
 
 ## Trigger condition
 
-If the project directory contains a frozen baseline snapshot, any change request enters revision mode. Revision mode applies even when the user asks for a small wording, chart, fact or page-order change.
+If the repository draft directory contains a frozen baseline snapshot, any change request enters revision mode. Revision mode applies even when the user asks for a small wording, chart, fact or page-order change.
 
 ## Local revision rules
 
@@ -13,6 +13,7 @@ If the project directory contains a frozen baseline snapshot, any change request
 3. List impacted pages before execution. Impacted pages include shared-number pages, executive summary pages, appendix pages, tracker pages and page-number changes.
 4. Do not silently propagate changes. Every dependent update must be explicit.
 5. When adding, deleting or reordering pages, update `storyline.md`, page numbers, trackers, executive summary references and appendix references.
+6. Persist every changed process artifact back to the same `Deck draft/<YYYY-MM-DD>/<deck-title-slug>/` path in the GitHub repo.
 
 ## Revision QA routing
 
@@ -23,7 +24,7 @@ If the project directory contains a frozen baseline snapshot, any change request
 | Page add/delete/reorder | Horizontal logic, tracker and page-number checks |
 | Wording / layout only | Rendering QA for the changed page only |
 
-After any revision, affected pages must rerun `scripts/qa_pptx.py` and rendering checks.
+After any revision, affected pages must rerun `scripts/qa_pptx.py --facts <draft-dir>/evidence.json` and rendering checks.
 
 ## Version discipline
 
@@ -52,3 +53,4 @@ When a user asks for a revision, the agent should respond internally with:
 4. Required evidence updates.
 5. QA rerun scope.
 6. New output version name.
+7. Repository draft path to update.
