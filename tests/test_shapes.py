@@ -9,7 +9,7 @@ ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from scripts.consulting_layouts import SLIDE_W, SLIDE_H, add_action_title
+from scripts.consulting_layouts import SLIDE_W, SLIDE_H, add_action_title, add_footer, cover_page
 from scripts import consulting_shapes as shapes
 from scripts.consulting_shapes import add_textbox, waterfall, native_chart
 from scripts.demo_generate_deck import generate as generate_demo
@@ -22,6 +22,11 @@ def blank_deck():
     prs.slide_height = Cm(SLIDE_H)
     slide = prs.slides.add_slide(prs.slide_layouts[6])
     return prs, slide
+
+
+def save_facts(path, facts):
+    path.write_text(json.dumps({"facts": facts}, ensure_ascii=False, indent=2), encoding="utf-8")
+    return path
 
 
 def test_font_xml_contains_latin_and_ea(tmp_path):
@@ -63,8 +68,78 @@ def test_theme_json_matches_shape_constants():
     assert theme["colors"]["fill"].lstrip("#") == shapes.GRAY_FILL
 
 
-def test_demo_deck_has_no_qa_false_positive_findings(tmp_path):
+def test_demo_deck_has_no_qa_false_positive_findings_with_facts(tmp_path):
     out = tmp_path / "demo_ai_transformation.pptx"
-    generate_demo(out)
-    findings = run_qa(out)
+    facts = tmp_path / "demo_ai_transformation.evidence.json"
+    generate_demo(out, facts)
+    findings = run_qa(out, facts)
     assert findings == []
+
+
+def test_mixed_cover_terminology_is_checked(tmp_path):
+    prs, slide = blank_deck()
+    cover_page(slide, "某银行数字化转型 strategy", "Mixed-language cover", "Client", "2026-07-05")
+    out = tmp_path / "mixed_cover.pptx"
+    prs.save(out)
+    findings = run_qa(out)
+    assert any(f.check == "terminology" and f.slide == 1 for f in findings)
+
+
+def test_pure_english_cover_has_no_terminology_warning(tmp_path):
+    prs, slide = blank_deck()
+    cover_page(slide, "Digital transformation strategy", "English cover", "Client", "2026-07-05")
+    out = tmp_path / "english_cover.pptx"
+    prs.save(out)
+    findings = run_qa(out)
+    assert not any(f.check == "terminology" for f in findings)
+
+
+def test_registered_fact_passes_consistency_check(tmp_path):
+    prs = Presentation()
+    prs.slide_width = Cm(SLIDE_W)
+    prs.slide_height = Cm(SLIDE_H)
+    cover = prs.slides.add_slide(prs.slide_layouts[6])
+    cover_page(cover, "Fact test deck", "English cover", "Client", "2026-07-05")
+    slide = prs.slides.add_slide(prs.slide_layouts[6])
+    add_action_title(slide, "Savings can reach 30% after process automation")
+    add_textbox(slide, "Savings reach 30% in the base case.", 1.2, 3.2, 12, 1)
+    add_footer(slide, 2, "Fact table")
+    out = tmp_path / "registered_fact.pptx"
+    prs.save(out)
+    facts = save_facts(tmp_path / "evidence.json", [{"id": "F001", "claim": "Savings", "value": 30, "unit": "%", "definition": "Base case", "source_type": "assumption", "source": "Test", "retrieved": "2026-07-05", "counter_evidence": "n/a", "used_on_pages": [2]}])
+    findings = run_qa(out, facts)
+    assert not any(f.check == "fact_consistency" for f in findings)
+
+
+def test_unregistered_number_warns(tmp_path):
+    prs = Presentation()
+    prs.slide_width = Cm(SLIDE_W)
+    prs.slide_height = Cm(SLIDE_H)
+    cover = prs.slides.add_slide(prs.slide_layouts[6])
+    cover_page(cover, "Fact test deck", "English cover", "Client", "2026-07-05")
+    slide = prs.slides.add_slide(prs.slide_layouts[6])
+    add_action_title(slide, "Savings can reach 30% after process automation")
+    add_textbox(slide, "Savings reach 30% in the base case.", 1.2, 3.2, 12, 1)
+    add_footer(slide, 2, "Fact table")
+    out = tmp_path / "unregistered_fact.pptx"
+    prs.save(out)
+    facts = save_facts(tmp_path / "evidence.json", [{"id": "F999", "claim": "Other", "value": 99, "unit": "%", "definition": "Other", "source_type": "assumption", "source": "Test", "retrieved": "2026-07-05", "counter_evidence": "n/a", "used_on_pages": []}])
+    findings = run_qa(out, facts)
+    assert any(f.severity == "warning" and f.check == "fact_consistency" and "Unregistered number" in f.message for f in findings)
+
+
+def test_fact_value_mismatch_errors(tmp_path):
+    prs = Presentation()
+    prs.slide_width = Cm(SLIDE_W)
+    prs.slide_height = Cm(SLIDE_H)
+    cover = prs.slides.add_slide(prs.slide_layouts[6])
+    cover_page(cover, "Fact test deck", "English cover", "Client", "2026-07-05")
+    slide = prs.slides.add_slide(prs.slide_layouts[6])
+    add_action_title(slide, "Savings can reach 25% after process automation")
+    add_textbox(slide, "Savings reach 25% in the base case.", 1.2, 3.2, 12, 1)
+    add_footer(slide, 2, "Fact table")
+    out = tmp_path / "mismatch_fact.pptx"
+    prs.save(out)
+    facts = save_facts(tmp_path / "evidence.json", [{"id": "F001", "claim": "Savings", "value": 30, "unit": "%", "definition": "Base case", "source_type": "assumption", "source": "Test", "retrieved": "2026-07-05", "counter_evidence": "n/a", "used_on_pages": [2]}])
+    findings = run_qa(out, facts)
+    assert any(f.severity == "error" and f.check == "fact_consistency" and "F001" in f.message for f in findings)
