@@ -1,0 +1,23 @@
+{
+  "name": "Consulting Deck Default Theme",
+  "slide_size_cm": {"width": 33.87, "height": 19.05},
+  "fonts": {"latin": "Arial", "east_asian": "Microsoft YaHei"},
+  "colors": {
+    "primary": "#1F3864",
+    "accent": "#C00000",
+    "text": "#333333",
+    "secondary_text": "#595959",
+    "light_text": "#A6A6A6",
+    "line": "#D9D9D9",
+    "fill": "#F2F2F2"
+  },
+  "geometry_cm": {
+    "left_margin": 1.2,
+    "right_margin": 1.2,
+    "top_margin": 1.0,
+    "bottom_margin": 0.8,
+    "title_y": 1.0,
+    "content_top": 3.2,
+    "footer_y": 18.15
+  }
+}
