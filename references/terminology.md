@@ -17,6 +17,12 @@ Keep terms such as API, token, RAG, SLA, TCO, LLM, embedding, prompt, landing zo
 - operating model → 运营模式 / 组织运作模式
 - business case → 商业论证
 
+## Behavior rules
+
+1. First use of an abbreviation should include a Chinese explanation when the audience is Chinese or mixed-language. Example: `TCO（总拥有成本）`, `ROI（投资回报率）`, `RAG（检索增强生成）`.
+2. Fallback rule: terms not listed in this file should default to Chinese when they are generic business language. Keep English only when it is a technical primitive, official product name, standard framework name, quoted source term, or user-provided glossary term.
+3. Use one expression for one concept across the full deck. Do not alternate between `治理模型`, `governance model`, and `管控模式` unless the distinction is intentional and defined.
+
 ## Spacing
 
 - Put a half-width space between Chinese and English: 使用 Azure OpenAI 构建 RAG 应用。
