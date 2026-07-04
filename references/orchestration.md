@@ -14,7 +14,7 @@ Use when subagents or task workers are available. Evidence Research is the highe
 
 ### Mode C — Page-module execution
 
-Use after storyline, page briefs and evidence findings are frozen. Page workers produce page modules, not PPTX files.
+Use after storyline, page briefs and evidence findings are frozen in `Deck draft/<YYYY-MM-DD>/<deck-title-slug>/baseline/`. Page workers produce page modules, not PPTX files.
 
 ## Parallelization decision table
 
@@ -35,15 +35,16 @@ Use after storyline, page briefs and evidence findings are frozen. Page workers 
 2. Do not let multiple agents write to the same `.pptx` file concurrently.
 3. Do not merge independently generated PPTX sections as the default approach; cross-file merging often causes style drift.
 4. Do not define new colors, fonts or sizing in page modules. Use existing helpers and theme tokens.
+5. Do not keep process state only in local scratch files or chat history. Persist state under `Deck draft/` in the repository.
 
 ## Page-module assembly pattern
 
-When generating pages in parallel, use page modules:
+When generating pages in parallel, use page modules under the draft directory:
 
 ```text
-pages/page_01.py
-pages/page_02.py
-pages/page_03.py
+Deck draft/<YYYY-MM-DD>/<deck-title-slug>/pages/page_01.py
+Deck draft/<YYYY-MM-DD>/<deck-title-slug>/pages/page_02.py
+Deck draft/<YYYY-MM-DD>/<deck-title-slug>/pages/page_03.py
 ```
 
 Each page module must expose the same signature:
@@ -58,6 +59,7 @@ Rules:
 - The module receives a blank slide and a shared `ctx` object.
 - The module may only import existing repository helpers: `scripts/consulting_layouts.py`, `scripts/consulting_shapes.py`, `scripts/business_case.py`, and `scripts/architecture_helpers.py`.
 - The module may not create or save a `Presentation` object.
+- The module must read page state from the frozen baseline or from assembler-provided `ctx`; it must not mutate `baseline/`.
 - The main agent assembles the final deck in a single process and in storyline order.
 
 ### Minimum `ctx` schema
@@ -71,15 +73,16 @@ The main assembler must pass at least these fields to every page module:
 | `current_section` | `int` or `str` | Current section index/name for tracker highlighting |
 | `lang` | `str` | Output language, usually `zh`, `en`, or `mixed` |
 | `source` | `str` or `None` | Source line or calculation basis for footer |
+| `draft_dir` | `str` | Repository path under `Deck draft/<YYYY-MM-DD>/<deck-title-slug>/` |
 
 Recommended optional fields:
 
 | Field | Type | Purpose |
 |---|---|---|
 | `theme` | `dict` | Theme tokens from `assets/theme.json` |
-| `page_brief` | `dict` | Frozen page brief for the current slide |
-| `evidence` | `list[dict]` | Evidence findings associated with the page |
-| `assumptions` | `list[str]` | Page-level assumptions or caveats |
+| `page_brief` | `dict` | Frozen page brief read from `briefs.yaml` in the draft directory |
+| `evidence` | `list[dict]` | Evidence findings read from `evidence.json` in the draft directory |
+| `assumptions` | `list[str]` | Page-level assumptions or caveats from `assumptions.md` |
 
 A page module must not invent additional required `ctx` fields without updating this schema.
 
@@ -97,7 +100,7 @@ For each page brief, create a research task containing:
 | Preferred sources | Source priority or source constraints |
 | Output | Number, unit, definition, source, retrieval date, caveat |
 
-Research findings must be reconciled by the main agent before page generation.
+Research findings must be reconciled by the main agent and persisted to `Deck draft/<YYYY-MM-DD>/<deck-title-slug>/evidence.json` before page generation.
 
 ## Failure degradation
 
