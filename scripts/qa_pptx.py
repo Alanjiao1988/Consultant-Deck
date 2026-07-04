@@ -11,7 +11,22 @@ from pptx import Presentation
 SLIDE_W_CM = 33.87
 SLIDE_H_CM = 19.05
 EMU_PER_CM = 360000
-ACTION_TERMS = ["will", "can", "should", "must", "reduce", "increase", "improve", "enable", "deliver", "requires", "offers", "prevents", "降低", "提升", "实现", "建议", "需要", "应", "将", "可"]
+
+# These signals are used only to avoid false positives. The QA rule should not try
+# to prove that a title is an action title; it should only flag likely topic labels.
+EN_ACTION_SIGNALS = {
+    "can", "will", "should", "must", "need", "needs", "require", "requires",
+    "enable", "enables", "enabled", "offer", "offers", "offered", "provide",
+    "provides", "prioritize", "prioritizes", "reduce", "reduces", "increase",
+    "increases", "improve", "improves", "deliver", "delivers", "prevent",
+    "prevents", "concentrate", "concentrates", "prefer", "preferable", "maximize",
+    "maximizes", "unlock", "unlocks", "shorten", "shortens", "reach", "reaches",
+    "drive", "drives", "create", "creates", "balance", "balances", "outperform",
+    "outperforms", "mitigate", "mitigates", "because", "within", "while",
+    "before", "after", "therefore", "best", "better", "highest", "lowest", "faster",
+    "slower", "more", "less", "first-wave", "platform-first",
+}
+CN_ACTION_SIGNALS = ["降低", "提升", "实现", "建议", "需要", "应", "将", "可", "必须", "能够", "优先", "集中", "更", "最佳", "风险", "收益", "回收", "减少", "增加"]
 BANNED_TERMS = {"organization": "组织", "strategy": "战略", "stakeholder": "相关方", "alignment": "对齐", "capability": "能力", "initiative": "举措"}
 
 @dataclass
@@ -32,6 +47,10 @@ def shape_text(shape):
     return "\n".join(p.text for p in shape.text_frame.paragraphs).strip()
 
 
+def has_cjk(text):
+    return re.search(r"[\u3400-\u9fff]", text) is not None
+
+
 def first_top_text(slide):
     candidates = []
     for shape in slide.shapes:
@@ -41,9 +60,33 @@ def first_top_text(slide):
     return sorted(candidates)[0][2] if candidates else None
 
 
-def is_action_title(title):
-    low = title.lower()
-    return len(title.strip()) > 8 and (re.search(r"\d", title) or any(term in low or term in title for term in ACTION_TERMS))
+def is_cover_or_divider(idx, texts):
+    if idx == 1:
+        return True
+    # Section dividers commonly carry a large two-digit section number.
+    return any(re.fullmatch(r"\d{2}", text.strip()) for text in texts)
+
+
+def looks_like_topic_label(title):
+    """Return True only for likely topic labels; avoid judging full titles."""
+    cleaned = re.sub(r"\s+", " ", title.strip())
+    if not cleaned:
+        return True
+    if re.search(r"\d", cleaned):
+        return False
+    if has_cjk(cleaned):
+        if any(signal in cleaned for signal in CN_ACTION_SIGNALS):
+            return False
+        # Short Chinese noun phrases such as “云迁移成本分析” are suspicious.
+        cjk_chars = len(re.findall(r"[\u3400-\u9fff]", cleaned))
+        return cjk_chars <= 14 and len(cleaned) <= 28
+    words = re.findall(r"[A-Za-z][A-Za-z\-]*", cleaned.lower())
+    if any(word in EN_ACTION_SIGNALS for word in words):
+        return False
+    if re.search(r"[:;—–]|\b(to|by|because|through|within|without)\b", cleaned, re.IGNORECASE):
+        return False
+    # Only short English noun phrases are flagged. Longer statements are left to human review.
+    return len(words) <= 7
 
 
 def has_font_xml(path, font):
@@ -66,21 +109,28 @@ def run_qa(path: Path):
     for idx, slide in enumerate(prs.slides, start=1):
         texts = [shape_text(shape) for shape in slide.shapes if shape_text(shape)]
         all_text = "\n".join(texts)
-        cover_like = idx == 1 or any(re.fullmatch(r"\d{2}", text.strip()) for text in texts)
-        if not cover_like:
+        cover_or_divider = is_cover_or_divider(idx, texts)
+
+        if not cover_or_divider:
             title = first_top_text(slide)
             if not title:
                 findings.append(Finding("error", idx, "action_title", "Missing top action title"))
             else:
                 if len(title) > 95:
                     findings.append(Finding("warning", idx, "action_title", "Title may exceed two lines"))
-                if not is_action_title(title):
+                if looks_like_topic_label(title):
                     findings.append(Finding("warning", idx, "action_title", "Title may be a topic label"))
-        if len(re.findall(r"\d", all_text)) >= 8 and not re.search(r"(来源[:：]|Source:)\s*\S+", all_text):
-            findings.append(Finding("warning", idx, "source_line", "Numeric-heavy slide may need a source line"))
-        for term, zh in BANNED_TERMS.items():
-            if re.search(r"\b" + re.escape(term) + r"\b", all_text.lower()):
-                findings.append(Finding("warning", idx, "terminology", f"Consider Chinese term for {term}: {zh}"))
+
+        # Cover and section divider pages are exempt from content-evidence checks.
+        if not cover_or_divider:
+            if len(re.findall(r"\d", all_text)) >= 8 and not re.search(r"(来源[:：]|Source:)\s*\S+", all_text):
+                findings.append(Finding("warning", idx, "source_line", "Numeric-heavy slide may need a source line"))
+            # The terminology blacklist applies only to Chinese or mixed Chinese-English pages.
+            if has_cjk(all_text):
+                for term, zh in BANNED_TERMS.items():
+                    if re.search(r"\b" + re.escape(term) + r"\b", all_text.lower()):
+                        findings.append(Finding("warning", idx, "terminology", f"Consider Chinese term for {term}: {zh}"))
+
         for shape in slide.shapes:
             x1, y1 = cm(shape.left), cm(shape.top)
             x2, y2 = x1 + cm(shape.width), y1 + cm(shape.height)
