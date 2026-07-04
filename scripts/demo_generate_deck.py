@@ -1,4 +1,4 @@
-"""Generate a small end-to-end demo consulting deck."""
+"""Generate a small end-to-end mixed Chinese-English consulting deck."""
 from pathlib import Path
 import sys
 from datetime import date
@@ -25,39 +25,39 @@ def generate(output=ROOT / "examples" / "demo_ai_transformation.pptx"):
     prs.slide_height = Cm(SLIDE_H)
 
     slide = blank(prs)
-    cover_page(slide, "AI transformation strategy for a banking client", "Consulting-style demo deck", "Illustrative client", str(date.today()))
+    cover_page(slide, "银行 AI 转型路线图", "Mixed Chinese-English consulting demo deck", "Illustrative client", str(date.today()))
 
     slide = blank(prs)
-    add_action_title(slide, "The bank can unlock AI value faster by sequencing use cases around readiness and risk")
-    exec_summary_block(slide, [("Where to play", "Prioritize internal knowledge workflows before external chatbots.", ["High-value use cases cluster in risk and productivity workflows.", "External-facing AI requires stronger control maturity."]), ("How to win", "Build reusable platform and governance assets before scaling domain copilots.", ["Reusable RAG and evaluation patterns avoid pilot sprawl.", "Hub-and-spoke ownership balances control and adoption."])])
-    add_footer(slide, 2, "Illustrative analysis;示意数据")
+    add_action_title(slide, "银行可通过先内后外的 AI 用例排序，在 18 个月内更快释放价值")
+    exec_summary_block(slide, [("优先方向", "先扩展内部知识工作流，再推进外部客户 chatbot。", ["高价值用例集中在风险控制与员工效率场景。", "外部 AI 触点需要更成熟的权限、审计与模型评估机制。"]), ("落地方式", "先建设可复用平台与治理资产，再规模化 domain copilot。", ["复用 RAG（检索增强生成）和 evaluation 模式，可减少试点蔓延。", "Hub-and-spoke 运营模式兼顾集中治理与业务采用。"])])
+    add_footer(slide, 2, "Illustrative analysis；示意数据", lang="zh")
 
     slide = blank(prs)
-    add_action_title(slide, "Internal knowledge workflows offer the best first-wave balance of value and execution readiness")
-    matrix_2x2_with_insights(slide, 1.4, 3.0, 10.8, "Execution readiness", "Business value", points=[("RM copilot", .72, .74), ("Call summary", .84, .62), ("Credit memo", .58, .78), ("Customer chatbot", .35, .68)], quadrant_labels=["Defer", "Quick wins", "Strategic bets", "Scale first"], quadrant_implications=[("Scale first", "Reusable data patterns and low external exposure make these candidates ideal for Wave 1."), ("Strategic bets", "High value but stronger controls are required before broad rollout.")])
-    add_footer(slide, 3, "Illustrative scoring;示意数据")
+    add_action_title(slide, "内部知识工作流在价值与就绪度之间提供最佳 Wave 1 平衡")
+    matrix_2x2_with_insights(slide, 1.4, 3.0, 10.8, "Execution readiness", "Business value", points=[("RM copilot", .72, .74), ("Call summary", .84, .62), ("Credit memo", .58, .78), ("Customer chatbot", .35, .68)], quadrant_labels=["Defer", "Quick wins", "Strategic bets", "Scale first"], quadrant_implications=[("Scale first", "低外部暴露与可复用数据模式，使其适合作为 Wave 1。"), ("Strategic bets", "价值较高，但大规模上线前需要更强控制机制。")])
+    add_footer(slide, 3, "Illustrative scoring；示意数据", lang="zh")
 
     slide = blank(prs)
-    add_action_title(slide, "A shared AI platform prevents pilot sprawl and shortens delivery cycles for future use cases")
-    layered_architecture(slide, [("Experience", ["RM copilot", "Ops assistant", "Employee search"]), ("Orchestration", ["Prompt flow", "Tool calling", "Policy routing"]), ("Knowledge", ["Vector index", "Document store", "Entitlements"]), ("Model", ["GPT models", "Embedding", "Evaluation"]), ("Control", ["Audit log", "DLP", "Monitoring"])], 1.4, 3.2, 30.5, 10.6)
-    add_footer(slide, 4, "Illustrative architecture;示意数据")
+    add_action_title(slide, "共享 AI 平台可避免试点蔓延，并缩短后续 use case 交付周期")
+    layered_architecture(slide, [("体验层", ["RM copilot", "Ops assistant", "Employee search"]), ("编排层", ["Prompt flow", "Tool calling", "Policy routing"]), ("知识层", ["Vector index", "Document store", "Entitlements"]), ("模型层", ["GPT models", "Embedding", "Evaluation"]), ("控制层", ["Audit log", "DLP", "Monitoring"])], 1.4, 3.2, 30.5, 10.6)
+    add_footer(slide, 4, "Illustrative architecture；示意数据", lang="zh")
 
     slide = blank(prs)
-    add_action_title(slide, "The roadmap can reach payback within 18 months if platform reuse lifts delivery productivity")
-    business_case_summary(slide, [("3-year net benefit", "$18m", "before tax", "good"), ("Payback", "18 mo", "base case", "good"), ("Run-rate saving", "22%", "target process scope", "good"), ("One-off investment", "$7m", "platform + change", "neutral")], [("Y0", 0, -7, -7), ("Y1", 8, -3, 5), ("Y2", 12, -2, 10), ("Y3", 15, -2, 13)], 1.4, 3.0, 30.5, 10.5)
-    add_footer(slide, 5, "Illustrative business case;示意数据")
+    add_action_title(slide, "如平台复用提升交付效率，路线图可在 18 个月内达到 payback")
+    business_case_summary(slide, [("3 年净收益", "$18m", "税前口径", "good"), ("Payback", "18 mo", "base case", "good"), ("Run-rate saving", "22%", "目标流程范围", "good"), ("一次性投入", "$7m", "平台 + 变革", "neutral")], [("Y0", 0, -7, -7), ("Y1", 8, -3, 5), ("Y2", 12, -2, 10), ("Y3", 15, -2, 13)], 1.4, 3.0, 30.5, 10.5)
+    add_footer(slide, 5, "Illustrative business case；示意数据", lang="zh")
 
     slide = blank(prs)
-    add_action_title(slide, "The highest risks concentrate in data leakage and uncontrolled external-facing deployment")
+    add_action_title(slide, "最高风险集中在数据泄露与外部触点失控，应优先建设上线门禁")
     risk_matrix(slide, [("Data leakage", 4, 5, "security"), ("Wrong answer", 3, 4, "quality"), ("Low adoption", 3, 3, "change")], 1.4, 3.2, 11.5, 9.2)
     add_textbox(slide, "Mitigation priorities", 14.2, 3.2, 10, .5, 11, True)
-    add_textbox(slide, "– Mandate evaluation gates before production\n– Enforce entitlement-aware retrieval and DLP\n– Separate internal assistant rollout from external chatbot path", 14.2, 4.0, 16.5, 2.4, 10.3)
-    add_footer(slide, 6, "Illustrative risk assessment;示意数据")
+    add_textbox(slide, "– 生产上线前强制 evaluation gate\n– 启用 entitlement-aware retrieval 与 DLP\n– 内部 assistant 与外部 chatbot 分阶段推进", 14.2, 4.0, 16.5, 2.4, 10.3)
+    add_footer(slide, 6, "Illustrative risk assessment；示意数据", lang="zh")
 
     slide = blank(prs)
-    add_action_title(slide, "A platform-first path is preferable because it maximizes reuse without delaying first value")
+    add_action_title(slide, "Platform-first 路径更优，因为它最大化复用且不延迟首批价值")
     option_evaluation_table(slide, ["Pilot-only", "Platform-first", "Big-bang"], ["Time", "Reuse", "Risk", "Cost", "Scale"], [[5, 2, 2, 4, 2], [4, 5, 5, 4, 5], [2, 5, 4, 2, 4]], 1.4, 3.1, 30.5, 8.0)
-    add_footer(slide, 7, "Illustrative option scoring;示意数据")
+    add_footer(slide, 7, "Illustrative option scoring；示意数据", lang="zh")
 
     output = Path(output)
     output.parent.mkdir(parents=True, exist_ok=True)
