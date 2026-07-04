@@ -60,6 +60,29 @@ Rules:
 - The module may not create or save a `Presentation` object.
 - The main agent assembles the final deck in a single process and in storyline order.
 
+### Minimum `ctx` schema
+
+The main assembler must pass at least these fields to every page module:
+
+| Field | Type | Purpose |
+|---|---|---|
+| `page_num` | `int` | Current slide number for footer and QA references |
+| `sections` | `list[str]` | Ordered section names for tracker or divider pages |
+| `current_section` | `int` or `str` | Current section index/name for tracker highlighting |
+| `lang` | `str` | Output language, usually `zh`, `en`, or `mixed` |
+| `source` | `str` or `None` | Source line or calculation basis for footer |
+
+Recommended optional fields:
+
+| Field | Type | Purpose |
+|---|---|---|
+| `theme` | `dict` | Theme tokens from `assets/theme.json` |
+| `page_brief` | `dict` | Frozen page brief for the current slide |
+| `evidence` | `list[dict]` | Evidence findings associated with the page |
+| `assumptions` | `list[str]` | Page-level assumptions or caveats |
+
+A page module must not invent additional required `ctx` fields without updating this schema.
+
 ## Evidence Research parallel pattern
 
 For each page brief, create a research task containing:
