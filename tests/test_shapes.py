@@ -12,6 +12,8 @@ if str(ROOT) not in sys.path:
 from scripts.consulting_layouts import SLIDE_W, SLIDE_H, add_action_title
 from scripts import consulting_shapes as shapes
 from scripts.consulting_shapes import add_textbox, waterfall, native_chart
+from scripts.demo_generate_deck import generate as generate_demo
+from scripts.qa_pptx import run_qa
 
 
 def blank_deck():
@@ -59,3 +61,10 @@ def test_theme_json_matches_shape_constants():
     assert theme["colors"]["light_text"].lstrip("#") == shapes.GRAY_3
     assert theme["colors"]["line"].lstrip("#") == shapes.GRAY_LINE
     assert theme["colors"]["fill"].lstrip("#") == shapes.GRAY_FILL
+
+
+def test_demo_deck_has_no_qa_false_positive_findings(tmp_path):
+    out = tmp_path / "demo_ai_transformation.pptx"
+    generate_demo(out)
+    findings = run_qa(out)
+    assert findings == []
