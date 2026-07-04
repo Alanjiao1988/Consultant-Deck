@@ -1,4 +1,5 @@
 from pathlib import Path
+import json
 import sys
 import zipfile
 from pptx import Presentation
@@ -9,6 +10,7 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 from scripts.consulting_layouts import SLIDE_W, SLIDE_H, add_action_title
+from scripts import consulting_shapes as shapes
 from scripts.consulting_shapes import add_textbox, waterfall, native_chart
 
 
@@ -44,3 +46,16 @@ def test_native_chart_validates_series_length():
     except ValueError:
         return
     raise AssertionError("Expected ValueError")
+
+
+def test_theme_json_matches_shape_constants():
+    theme = json.loads((ROOT / "assets" / "theme.json").read_text(encoding="utf-8"))
+    assert theme["fonts"]["latin"] == shapes.FONT_LATIN
+    assert theme["fonts"]["east_asian"] == shapes.FONT_EA
+    assert theme["colors"]["primary"].lstrip("#") == shapes.PRIMARY
+    assert theme["colors"]["accent"].lstrip("#") == shapes.ACCENT
+    assert theme["colors"]["text"].lstrip("#") == shapes.GRAY_TEXT
+    assert theme["colors"]["secondary_text"].lstrip("#") == shapes.GRAY_2
+    assert theme["colors"]["light_text"].lstrip("#") == shapes.GRAY_3
+    assert theme["colors"]["line"].lstrip("#") == shapes.GRAY_LINE
+    assert theme["colors"]["fill"].lstrip("#") == shapes.GRAY_FILL
