@@ -175,9 +175,9 @@ def extract_number_tokens(text, slide_num):
 
     consume(r"\$\s*(?P<value>\d+(?:\.\d+)?)\s*(?P<suffix>m|bn|k)?\b", lambda m: "$" + (m.group("suffix") or ""))
     consume(r"(?P<value>\d+(?:\.\d+)?)\s*%", lambda m: "%")
-    consume(r"(?P<value>\d+(?:\.\d+)?)\s*(?P<unit>个月|月|months?|mo|mos)\b?", lambda m: m.group("unit"))
+    consume(r"(?P<value>\d+(?:\.\d+)?)\s*(?P<unit>个月|月|months?|mo|mos)(?![A-Za-z])", lambda m: m.group("unit"))
     # Short year-period labels such as “3 年净收益” are usually metric labels, not facts.
-    consume(r"(?P<value>\d+(?:\.\d+)?)\s*(?P<unit>年|years?|yrs?)\b?", lambda m: m.group("unit"), min_value=6)
+    consume(r"(?P<value>\d+(?:\.\d+)?)\s*(?P<unit>年|years?|yrs?)(?![A-Za-z])", lambda m: m.group("unit"), min_value=6)
 
     for match in re.finditer(r"\b(?P<value>\d+(?:\.\d+)?)\b", working):
         value = float(match.group("value"))
