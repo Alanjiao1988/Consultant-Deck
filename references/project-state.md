@@ -1,47 +1,55 @@
 # Project state layer
 
-Every deck project must persist intermediate state to this GitHub repository. Do not keep storyline, briefs, evidence or assumptions only in the conversation history, and do not rely on local-only scratch files for process state.
+Every deck project must persist intermediate state, but real client project state must not be written to a public skill repository. Keep this skill repository distributable; store project state in a separate private project-state repository, an enterprise-internal repository, or a local encrypted workspace when GitHub storage is unavailable.
+
+## Security rule
+
+Customer-identifiable information must never be written to public storage. This includes customer names, internal numbers, project code names, workshop notes, non-public architecture details, source documents, draft storylines and `evidence.json` facts.
+
+When using GitHub for process persistence, the target must be a private repository or enterprise-internal repository with appropriate access controls. Do not use this public skill repo for real project drafts.
 
 ## Work directory structure
 
-At the start of deck generation, create one independent draft directory inside the repository:
+At the start of deck generation, create one independent project directory under a private state root:
 
 ```text
-Deck draft/
-  <YYYY-MM-DD>/
-    <deck-title-slug>/
-      storyline.md        # Ordered action titles, with page pattern / exhibit markers
-      briefs.yaml         # All page briefs with the seven required fields
-      evidence.json       # Fact table used by the deck
-      pages/              # page_NN.py modules for page-module assembly mode
-      output/             # Versioned PPTX outputs or delivery references
-      assumptions.md      # Team assumptions used for automatic execution or unresolved evidence
-      changelog.md        # Version history and revision notes
-      baseline/           # Frozen baseline snapshot after Step 5 confirmation
+<private-state-root>/
+  deck-drafts/
+    <YYYY-MM-DD>/
+      <deck-title-slug>/
+        storyline.md        # Ordered action titles, with page pattern / exhibit markers
+        briefs.yaml         # All page briefs with the seven required fields
+        evidence.json       # Fact table used by the deck
+        pages/              # page_NN.py modules for page-module assembly mode
+        output/             # Versioned PPTX outputs or delivery references
+        assumptions.md      # Team assumptions used for automatic execution or unresolved evidence
+        changelog.md        # Version history and revision notes
+        baseline/           # Frozen baseline snapshot after Step 5 confirmation
 ```
 
 Directory naming rules:
 
 - Use the request date in `YYYY-MM-DD` format.
 - Use a concise, filesystem-safe deck title slug, for example `bank-ai-transformation-roadmap`.
-- Keep all process artifacts for the same deck inside this directory to avoid local resource sprawl and to make the work auditable from the repo.
+- Use `deck-drafts` rather than a path with spaces so shell scripts and CI do not require special quoting.
+- Keep all process artifacts for the same deck inside this private directory to avoid local resource sprawl and to make the work auditable.
 - Generated binary PPTX files may be stored as versioned outputs if repository policy allows; otherwise store a delivery reference and keep all process state in the draft directory.
 
 ## Persist timing
 
 | Workflow point | Required state action |
 |---|---|
-| Project start | Create `Deck draft/<YYYY-MM-DD>/<deck-title-slug>/` in the GitHub repo |
+| Project start | Create `<private-state-root>/deck-drafts/<YYYY-MM-DD>/<deck-title-slug>/` |
 | Step 2 Storyline complete | Write `storyline.md` |
 | Step 3 Exhibit Plan complete | Write `briefs.yaml` |
 | Step 4 Evidence Research complete | Write or update `evidence.json` and `assumptions.md` |
-| Step 5 confirmation / automatic execution gate | Freeze a baseline snapshot, preferably via git commit or by copying current state into `baseline/` |
+| Step 5 confirmation / automatic execution gate | Freeze a baseline snapshot, preferably via git commit in the private state repo or by copying current state into `baseline/` |
 | Step 6 page generation | Write page modules into `pages/page_NN.py`; write generated PPTX or delivery reference into `output/` |
 | Step 7 / Step 8 QA complete | Record QA result and relevant notes in `changelog.md` or delivery notes |
 
 ## Freeze semantics
 
-A brief is considered frozen only when a baseline snapshot exists in the draft directory. In page-module assembly mode, subagents may read the frozen baseline but must not mutate it. Any change after baseline freeze must go through `references/revision-loop.md`.
+A brief is considered frozen only when a baseline snapshot exists in the private draft directory. In page-module assembly mode, subagents may read the frozen baseline but must not mutate it. Any change after baseline freeze must go through `references/revision-loop.md`.
 
 ## Evidence fact table schema
 
@@ -84,9 +92,10 @@ A brief is considered frozen only when a baseline snapshot exists in the draft d
 4. What is the source?
 5. What was the retrieval date?
 
-## GitHub storage discipline
+## Storage discipline
 
-- Process files belong under `Deck draft/`, not in local-only scratch directories.
-- Subagents must write or return content for repository paths under the draft directory.
+- Real process files belong under a private project-state root, not in this public skill repository.
+- Subagents must write or return content for paths under the private draft directory.
 - The main agent owns baseline freezes and final output versioning.
-- Avoid excessive binary churn. Prefer storing process text artifacts and versioned final outputs; if large binaries are not desired in the repo, store a delivery reference in `output/README.md`.
+- Avoid excessive binary churn. Prefer storing process text artifacts and versioned final outputs; if large binaries are not desired in the private state repo, store a delivery reference in `output/README.md`.
+- If only public storage is available, do not persist customer-identifiable project state there. Ask for a private target or use local encrypted storage instead.
