@@ -1,7 +1,6 @@
 """PowerPoint-native consulting shapes for python-pptx."""
 from __future__ import annotations
 
-from math import ceil
 from typing import Any
 
 from pptx.dml.color import RGBColor
@@ -337,10 +336,6 @@ def cagr_annotation(slide, start_value, end_value, periods, x1, y1, x2, y2,
     )
     connector.line.color.rgb = RGBColor.from_string(PRIMARY)
     connector.line.width = Pt(1.5)
-    try:
-        connector.line.end_arrowhead = True
-    except Exception:
-        pass
     mid_x = (x1 + x2) / 2 - 1.2
     mid_y = (y1 + y2) / 2 - 0.45
     add_textbox(slide, f"{label_prefix} {cagr:.1%}", mid_x, mid_y, 2.8, 0.45,
@@ -489,9 +484,9 @@ def driver_tree(slide, root, branches=None, x=1.4, y=3.0, w=20.0, h=9.0,
                 node_w=4.0, node_h=1.15):
     """Render a quantified driver tree.
 
-    Node schema: `{"label": str, "value": number|str, "unit": str,
-    "children": [node, ...]}`. `branches` is accepted for convenience and is
-    attached to `root` when root has no `children`.
+    Node schema: `{"label": str, "value": number|str, "prefix": str,
+    "unit": str, "children": [node, ...]}`. `branches` is accepted for
+    convenience and attached to `root` when root has no `children`.
     """
     if not isinstance(root, dict):
         raise ValueError("root must be a mapping")
@@ -570,8 +565,9 @@ def driver_tree(slide, root, branches=None, x=1.4, y=3.0, w=20.0, h=9.0,
             p2.alignment = PP_ALIGN.CENTER
             value_run = p2.add_run()
             value_text = _format_number(value, node.get("format"))
+            prefix = str(node.get("prefix", ""))
             unit = str(node.get("unit", ""))
-            value_run.text = f"{value_text}{unit}"
+            value_run.text = f"{prefix}{value_text}{unit}"
             set_font(value_run, 9.6, True, "FFFFFF" if is_root else PRIMARY)
     return root_item
 
