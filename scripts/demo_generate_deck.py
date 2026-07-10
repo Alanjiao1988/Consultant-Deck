@@ -1,6 +1,7 @@
 """Generate a data-rich mixed Chinese-English consulting demo deck."""
 from __future__ import annotations
 
+import argparse
 from datetime import date
 from pathlib import Path
 import json
@@ -469,5 +470,20 @@ def generate(output=ROOT / "examples" / "demo_ai_transformation.pptx",
     return output, evidence_path, briefs_path
 
 
+def main(argv=None):
+    parser = argparse.ArgumentParser(description="Generate the data-rich consulting demo deck")
+    parser.add_argument(
+        "--output",
+        type=Path,
+        default=ROOT / "examples" / "demo_ai_transformation.pptx",
+        help="Output PPTX path",
+    )
+    parser.add_argument("--evidence-output", type=Path, default=None, help="Output evidence.json path")
+    parser.add_argument("--briefs-output", type=Path, default=None, help="Output briefs.yaml path")
+    args = parser.parse_args(argv)
+    generate(args.output, args.evidence_output, args.briefs_output)
+    return 0
+
+
 if __name__ == "__main__":
-    generate()
+    raise SystemExit(main())

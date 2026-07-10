@@ -112,7 +112,8 @@ These are quality floors, not reasons to split facts artificially. If the topic 
 ## Visual QA
 
 - Fonts include both Arial and Microsoft YaHei in XML.
-- Layout stays within margins and no text boxes overlap.
+- Layout stays within margins; automated QA uses conservative text-overflow and independent-textbox-overlap heuristics.
+- Exact alignment, page-number continuity and complex intentional layering still require rendered-image or manual review.
 - Palette uses primary, accent and gray scale only.
 - Charts are PowerPoint-native when possible.
 - Source line and page number are present where required.
