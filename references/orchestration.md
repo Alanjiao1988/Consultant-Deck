@@ -52,6 +52,7 @@ Use after storyline, page briefs and evidence findings are frozen in `<private-s
 7. Do not let research workers return only narrative summaries when the page brief requires numbers, definitions, formulas or source metadata.
 8. Do not let page workers invent facts, assumptions, comparison sets or analytical methods that are absent from the frozen brief.
 9. Do not split one broad research task among many agents without assigning non-overlapping source or evidence scopes; duplicated shallow research does not improve quality.
+10. Do not lower Evidence Discipline to satisfy data-density targets. Missing numbers trigger deeper research, a weaker conclusion or page removal—not fabrication.
 
 ## Page-module assembly pattern
 
@@ -76,7 +77,7 @@ Rules:
 - The module may only import existing repository helpers: `scripts/consulting_layouts.py`, `scripts/consulting_shapes.py`, `scripts/business_case.py`, and `scripts/architecture_helpers.py`.
 - The module may not create or save a `Presentation` object.
 - The module must read page state from the frozen baseline or from assembler-provided `ctx`; it must not mutate `baseline/`.
-- The module must render the required evidence IDs, comparison basis, insight annotations, implication and appendix reference defined in the page brief.
+- The module must render the required evidence IDs, quantification, benchmark, comparison basis, insight annotations, implication and appendix reference defined in the page brief.
 - The module must not introduce unregistered numbers or unsupported claims.
 - The main agent assembles the final deck in a single process and in storyline order.
 
@@ -115,12 +116,27 @@ For each page brief or evidence cluster, create a research task containing:
 | Page / cluster | Slide number, section reference or evidence domain |
 | Claim | Judgment, number or comparison to verify |
 | Required data points | Exact metrics, periods, entities, definitions or documents needed |
-| Comparison basis | Peer, historical period, segment, geography, scenario or benchmark |
+| Quantification | Baseline, target, gap, range, decomposition or threshold the task must establish |
+| Comparison basis | Peer, historical period, segment, geography, scenario or benchmark method |
+| Benchmark | Named comparable entity, numeric value/range/threshold and definition required |
 | Support query | Query designed to find supporting evidence |
 | Counter query | Query designed to find contradictory evidence or limitations |
 | Evidence type | Market, competitor, product capability, pricing, regulation, financial, customer proof, implementation, operations or risk |
 | Preferred sources | Source priority, date requirement and source constraints |
 | Output | Structured fact/calculation objects plus research notes |
+
+### Minimum quantitative output specification
+
+Unless the page brief explicitly justifies a different structure, each quantitative research task should return:
+
+1. the core current metric or conclusion value;
+2. a time series with at least 2–3 comparable time points, sufficient to show direction or calculate growth;
+3. one to two comparable entities, scenarios or thresholds using the same definition;
+4. the unit, period, entity, definition and source for every value;
+5. any calculation formula and input evidence IDs;
+6. at least one limitation, counter-evidence item or comparability caveat.
+
+A task that returns one isolated number is incomplete when a time series or comparable is reasonably available. If the source exposes only one defensible number, the worker must report the failed comparison searches and the limitation rather than inventing context.
 
 ### Required research-worker output
 
@@ -152,10 +168,11 @@ Before freezing evidence, the main agent must:
 3. distinguish management claims from independent evidence;
 4. verify formulas and input fact IDs;
 5. assess whether the evidence supports the strength of the action title;
-6. update caveats and counter-thesis pages;
-7. verify that each core page meets its content budget;
-8. plan appendix pages for detailed tables, definitions, calculations and rejected alternatives;
-9. persist the reconciled result to `evidence.json`, `research-log.md`, `briefs.yaml` and `assumptions.md`.
+6. verify that non-numeric titles have a completed `title_quantification` task or justified rationale;
+7. update caveats and counter-thesis pages;
+8. verify that each core page meets its quantification, benchmark and numeric content budget;
+9. plan appendix pages for detailed tables, definitions, calculations and rejected alternatives;
+10. persist the reconciled result to `evidence.json`, `research-log.md`, `briefs.yaml` and `assumptions.md`.
 
 Research findings must be reconciled by the main agent and persisted before page generation.
 
@@ -165,8 +182,11 @@ Vertical QA workers may review one page or a small page batch. Their output must
 
 - conclusion-evidence alignment;
 - missing promised data points;
+- visible registered-number count versus the page threshold;
+- quantification and concrete benchmark quality;
 - comparison or analysis-method quality;
 - calculation traceability;
+- unsupported strong qualitative wording;
 - insight annotation quality;
 - implication and caveat completeness;
 - appendix linkage;
@@ -180,11 +200,12 @@ The main agent retains ownership of horizontal logic, cross-page consistency, ex
 - Research worker timeout: mark the item as unresolved and downgrade to a clearly labelled team assumption, unless the claim is central to the recommendation.
 - Three unsuccessful searches: downgrade to a team assumption or remove/weaken the page.
 - Broad but shallow output: reissue a narrower task specifying required data points, period, entity, comparison and source hierarchy.
+- Isolated-number output: request 2–3 time points and one to two comparables, or record why they do not exist.
 - Page worker failure twice: the main agent takes back the page and generates it serially.
 - Numeric conflict across research workers: apply source priority, document the definition gap, and record the difference in appendix or speaker notes.
 - Source-definition conflict: retain both definitions, choose the most decision-relevant one for the core deck and document reconciliation.
 - Visual QA worker disagreement: final judgment belongs to the main agent after rendering review.
-- Content-density failure: return to the page brief and research queue; do not repair it by adding generic prose.
+- Content-density failure: return to the page brief and research queue; do not repair it by adding generic prose or unsupported numbers.
 
 ## Platform adaptation
 
