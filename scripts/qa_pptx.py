@@ -170,26 +170,78 @@ def canonical_unit(unit: str | None) -> str:
     return normalized or "plain"
 
 
+def _safe_used_on_pages(value: Any) -> set[int]:
+    if value is None:
+        return set()
+    values = value if isinstance(value, (list, tuple, set)) else [value]
+    pages: set[int] = set()
+    for item in values:
+        try:
+            page = int(item)
+        except (TypeError, ValueError):
+            continue
+        if page > 0:
+            pages.add(page)
+    return pages
+
+
 def load_facts(path: Path | None) -> list[dict[str, Any]]:
+    """Load numeric and qualitative evidence records without failing on bad rows.
+
+    The legacy function name is retained for compatibility. Records with a numeric
+    ``value`` participate in numeric consistency and density checks. Records with a
+    missing or non-numeric value are retained as qualitative evidence, but never count
+    toward numeric-density thresholds.
+    """
     if path is None:
         return []
     data = json.loads(path.read_text(encoding="utf-8"))
-    records = []
+    if not isinstance(data, dict):
+        return []
+
+    records: list[dict[str, Any]] = []
     for section in ("facts", "calculations"):
-        for item in data.get(section, []):
-            try:
-                value = float(item.get("value"))
-            except (TypeError, ValueError):
+        items = data.get(section, [])
+        if not isinstance(items, list):
+            continue
+        for index, item in enumerate(items, start=1):
+            if not isinstance(item, dict):
                 continue
+
+            raw_value = item.get("value")
+            value: float | None = None
+            is_numeric = False
+            if not isinstance(raw_value, bool):
+                try:
+                    value = float(raw_value)
+                    is_numeric = math.isfinite(value)
+                except (TypeError, ValueError):
+                    value = None
+            if not is_numeric:
+                value = None
+
+            claim = str(item.get("claim", "") or "").strip()
+            explicit_text = item.get("text_value", item.get("qualitative_value"))
+            if explicit_text is None and raw_value is not None and not is_numeric:
+                explicit_text = raw_value
+            text_value = str(explicit_text or claim).strip()
+
             records.append({
-                "id": str(item.get("id", "UNKNOWN")),
-                "claim": str(item.get("claim", "")),
+                "id": str(item.get("id") or f"UNKNOWN-{section}-{index}"),
+                "claim": claim,
                 "value": value,
+                "text_value": text_value,
                 "unit": canonical_unit(item.get("unit", "plain")),
                 "source_type": str(item.get("source_type", "")),
-                "used_on_pages": {int(page) for page in item.get("used_on_pages", [])},
+                "used_on_pages": _safe_used_on_pages(item.get("used_on_pages")),
+                "is_numeric": is_numeric,
+                "evidence_type": "numeric" if is_numeric else "qualitative",
             })
     return records
+
+
+def numeric_facts(facts: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    return [fact for fact in facts if fact.get("is_numeric") and fact.get("value") is not None]
 
 
 def load_briefs(path: Path | None) -> tuple[dict[str, Any], dict[int, dict[str, Any]]]:
@@ -284,6 +336,8 @@ def chart_values(slide: Any) -> list[float]:
 
 
 def token_matches_fact(token: NumberToken, fact: dict[str, Any]) -> bool:
+    if not fact.get("is_numeric") or fact.get("value") is None:
+        return False
     return unit_compatible(token.unit, fact["unit"]) and values_equal(token.value, fact["value"])
 
 
@@ -292,6 +346,7 @@ def fact_applies_to_page(fact: dict[str, Any], page: int) -> bool:
 
 
 def run_fact_consistency(prs: Presentation, facts: list[dict[str, Any]]) -> list[Finding]:
+    facts = numeric_facts(facts)
     if not facts:
         return []
     findings: list[Finding] = []
@@ -337,6 +392,7 @@ def run_fact_consistency(prs: Presentation, facts: list[dict[str, Any]]) -> list
 
 
 def registered_fact_ids_on_slide(slide: Any, slide_num: int, facts: list[dict[str, Any]]) -> set[str]:
+    facts = numeric_facts(facts)
     title_shape = first_top_shape(slide)
     tokens: list[NumberToken] = []
     for text in text_shapes_for_fact_scan(slide, exclude_shape=title_shape):
@@ -384,7 +440,8 @@ def is_density_exempt(brief: dict[str, Any]) -> bool:
 
 def run_data_density(prs: Presentation, facts: list[dict[str, Any]], meta: dict[str, Any], briefs: dict[int, dict[str, Any]]) -> list[Finding]:
     analytical_pages = [page for page, brief in briefs.items() if not is_density_exempt(brief)]
-    if not facts:
+    numeric = numeric_facts(facts)
+    if not numeric:
         if analytical_pages:
             pages = ", ".join(str(page) for page in sorted(analytical_pages))
             return [Finding(
@@ -410,7 +467,7 @@ def run_data_density(prs: Presentation, facts: list[dict[str, Any]], meta: dict[
         if is_density_exempt(brief):
             continue
         threshold = density_threshold(brief, meta)
-        matched = registered_fact_ids_on_slide(slide, index, facts)
+        matched = registered_fact_ids_on_slide(slide, index, numeric)
         if len(matched) < threshold:
             findings.append(Finding(
                 "warning", index, "data_density",
@@ -628,17 +685,24 @@ def main(argv: list[str] | None = None) -> int:
         modules.append("fact-consistency")
     if args.briefs is not None:
         modules.append("data-density")
-    fact_count = len(load_facts(args.facts)) if args.facts is not None else 0
+    loaded_facts = load_facts(args.facts) if args.facts is not None else []
+    fact_count = len(loaded_facts)
+    numeric_count = len(numeric_facts(loaded_facts))
+    qualitative_count = fact_count - numeric_count
+    fact_status = (
+        f"{fact_count} (numeric={numeric_count}, qualitative={qualitative_count})"
+        if args.facts is not None else "not-supplied"
+    )
     brief_count = len(load_briefs(args.briefs)[1]) if args.briefs is not None else 0
     errors = sum(item.severity == "error" for item in findings)
     warnings = sum(item.severity == "warning" for item in findings)
     status = (
         f"QA passed: 0 findings; modules={','.join(modules)}; "
-        f"facts={fact_count if args.facts is not None else 'not-supplied'}; "
+        f"facts={fact_status}; "
         f"briefs={brief_count if args.briefs is not None else 'not-supplied'}"
         if not findings else
         f"QA completed: errors={errors}, warnings={warnings}; modules={','.join(modules)}; "
-        f"facts={fact_count if args.facts is not None else 'not-supplied'}; "
+        f"facts={fact_status}; "
         f"briefs={brief_count if args.briefs is not None else 'not-supplied'}"
     )
 
