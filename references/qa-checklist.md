@@ -10,6 +10,7 @@ Use this checklist together with `references/content-density.md`. A visually cor
 - Decision test: the requested decision or action is explicit.
 - Coverage test: the storyline covers diagnosis, quantified impact, recommendation, implementation, risk and decision.
 - Redundancy test: no page exists only because it is common in a consulting template.
+- Quantified-title test: analytical titles contain a defensible number/range where available, or have a completed `title_quantification` task and documented rationale.
 
 ## Page QA
 
@@ -18,12 +19,34 @@ Use this checklist together with `references/content-density.md`. A visually cor
 - Evidence on the page supports the title directly.
 - So-what and now-what are explicit where needed.
 - The page contains a comparison, trend, benchmark, decomposition, scenario or other defined analytical method.
+- The page brief contains both a central `quantification` and a concrete `benchmark`.
 - Core analytical pages contain at least 2 registered evidence IDs and normally 4–8 in research-heavy mode.
+- Research-heavy analytical page bodies expose at least 3 unique registered numeric facts unless explicitly exempt.
 - The exhibit includes two to four insight annotations, not only raw numbers.
 - A single statistic is not presented without period, definition and comparison context.
 - Complex backup analysis is moved to a linked appendix page rather than omitted.
 - Conceptual frameworks and architecture diagrams include quantified baselines or targets, design decisions, trade-offs and dependencies.
-- Roadmaps include owners, deliverables, decision gates, measurable exit criteria and critical dependencies.
+- Roadmaps include owners, deliverables, decision gates, measurable exit criteria, critical dependencies and quantified wave scope.
+- Strong qualitative statements such as `显著提升` or `rapidly growing` include a number, range, threshold or visible evidence basis.
+
+## Quantification test
+
+For every non-exempt analytical page, ask three mandatory questions:
+
+1. **Number:** Is the conclusion supported by visible, registered numeric facts or calculations?
+2. **Benchmark:** Is the number compared with history, peers, a scenario, a threshold or a target using a consistent definition?
+3. **Definition and source:** Are the unit, period, entity, calculation basis and source traceable?
+
+If any answer is `no`, return the page to Step 4 Evidence Research. Do not repair the page by adding unsupported numbers, generic prose or smaller text.
+
+Also verify:
+
+- baseline, target and gap reconcile where applicable;
+- time series contains enough comparable periods to establish direction;
+- peer or scenario comparisons use the same definition;
+- derived metrics identify formulas and input evidence IDs;
+- chart labels, table values and evidence.json agree;
+- a non-numeric title has a justified rationale after reasonable searches.
 
 ## Content-depth QA
 
@@ -31,14 +54,14 @@ For each core page, answer yes or no:
 
 1. Does the page contain the specific facts promised in the page brief?
 2. Is there enough evidence to challenge the conclusion rather than merely illustrate it?
-3. Is there at least one meaningful comparison basis?
+3. Is there at least one meaningful comparison basis and concrete benchmark?
 4. Are calculations reproducible from the stated inputs?
 5. Does the page explain why the finding matters?
 6. Does it identify a decision, action or implication?
 7. Is the main caveat visible or available in the notes/appendix?
 8. Would removing the page weaken the decision logic?
 
-Any core page with two or more `no` answers must be revised or removed.
+Any core page with two or more `no` answers must be revised or removed. A failed Quantification test is independently sufficient to return the page to Step 4.
 
 ## Deck-level density QA
 
@@ -49,7 +72,8 @@ For a typical 10-page core deck in research-heavy mode, verify that the deck con
 - at least 5 data-bearing analytical exhibits;
 - at least 3 appendix pages covering source detail, methodology, sensitivities or backup analysis;
 - one primary source for each major conclusion when available;
-- two independent source families for high-impact market, financial or regulatory claims.
+- two independent source families for high-impact market, financial or regulatory claims;
+- no more than approximately 25% explicitly requested conceptual-framework pages.
 
 These are quality floors, not reasons to split facts artificially. If the topic genuinely has less evidence, record the limitation and weaken the conclusions.
 
@@ -65,6 +89,7 @@ These are quality floors, not reasons to split facts artificially. If the topic 
 - Management claims are distinguished from independently verified evidence.
 - Derived metrics can be traced to registered source facts.
 - Evidence IDs used on slides exist in `evidence.json` and are assigned to the correct pages.
+- Data-density requirements never justify fabrication or unsupported extrapolation.
 
 ## Executive summary QA
 
@@ -92,7 +117,7 @@ These are quality floors, not reasons to split facts artificially. If the topic 
 - Charts are PowerPoint-native when possible.
 - Source line and page number are present where required.
 - No font is reduced below the approved minimum to force excess content onto a page.
-- Dense analysis uses small multiples, summary tables, annotated charts, bridges and insight rails rather than paragraphs.
+- Dense analysis uses tables, chart-plus-table combinations, benchmark bars, driver trees, small multiples, annotated charts, bridges and insight rails rather than paragraphs.
 - If a page is unreadable, split it into two pages instead of shrinking text.
 
 ## Automated QA
@@ -110,7 +135,9 @@ Resolve all errors before freezing the baseline. Review warnings explicitly; res
 After PPTX generation, run:
 
 ```bash
-python scripts/qa_pptx.py path/to/deck.pptx --facts path/to/evidence.json
+python scripts/qa_pptx.py path/to/deck.pptx \
+  --facts path/to/evidence.json \
+  --briefs path/to/briefs.yaml
 ```
 
-Warnings should be reviewed manually; errors should be fixed before delivery. Automated QA does not replace content-depth review, source validation or executive skim testing.
+`qa_pptx.py` checks registered-number density, unsupported strong qualitative claims, fact consistency, source-line signals, terminology, fonts and bounds. Warnings should be reviewed manually; errors should be fixed before delivery. Automated QA does not replace source validation, calculation review or executive skim testing.
