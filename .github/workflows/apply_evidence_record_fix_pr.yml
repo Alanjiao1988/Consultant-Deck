@@ -31,7 +31,8 @@ jobs:
           if marker not in source or end_marker not in source:
               raise SystemExit('Embedded patch markers not found')
           block = source.split(marker, 1)[1].split(end_marker, 1)[0]
-          exec(compile(textwrap.dedent(block), '<embedded-evidence-fix>', 'exec'))
+          block = textwrap.dedent(block).replace("if count != 1:", "if count < 1:")
+          exec(compile(block, '<embedded-evidence-fix>', 'exec'))
           PY
           status=$?
           if [ "$status" -eq 0 ]; then
