@@ -25,11 +25,32 @@ jobs:
       - name: Generate template
         run: python scripts/create_template.py
 
-      - name: Generate demo deck and evidence
+      - name: Generate data-rich demo deck, evidence and briefs
         run: python scripts/demo_generate_deck.py
 
-      - name: Run QA with fact table
-        run: python scripts/qa_pptx.py examples/demo_ai_transformation.pptx --facts examples/demo_ai_transformation.evidence.json --json
+      - name: Run page-brief quantification QA
+        run: |
+          python scripts/qa_briefs.py examples/demo_ai_transformation.briefs.yaml \
+            --facts examples/demo_ai_transformation.evidence.json \
+            --fail-on-warning \
+            --json
+
+      - name: Require zero PPTX QA findings
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          from scripts.qa_pptx import run_qa
+
+          findings = run_qa(
+              Path("examples/demo_ai_transformation.pptx"),
+              Path("examples/demo_ai_transformation.evidence.json"),
+              Path("examples/demo_ai_transformation.briefs.yaml"),
+          )
+          if findings:
+              for finding in findings:
+                  print(finding)
+              raise SystemExit(1)
+          PY
 
       - name: Run tests
         run: pytest tests/ -q
