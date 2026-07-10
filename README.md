@@ -1,28 +1,33 @@
 # Consultant Deck Skill
 
-A consulting-style PowerPoint skill for generating executive-ready decks with storyline discipline, action titles, exhibit planning, mandatory evidence research, support and counter-evidence checks, private project-state persistence, fact-table QA, subagent orchestration rules, revision loop, Chinese-English typography rules, and reusable PowerPoint-native layout/chart helpers.
+A research-heavy consulting-style PowerPoint skill for generating executive-ready decks with storyline discipline, data-rich page briefs, mandatory evidence research, support and counter-evidence checks, analytical content-density gates, appendix depth, private project-state persistence, fact-table QA, subagent orchestration rules, revision loop, Chinese-English typography rules, and reusable PowerPoint-native layout/chart helpers.
 
-## What was fixed
+## What this version fixes
 
-This version addresses the earlier review gaps:
+Earlier versions could produce a structurally correct but analytically thin deck: action titles and consulting layouts were present, yet pages could still contain only frameworks, icons, generic architecture boxes or a small number of uncontextualized facts.
 
-1. Added a full consulting delivery workflow: storyline → exhibit plan → evidence research → page production → consulting QA → rendering QA.
-2. Added mandatory Evidence Research before confirmation or automatic execution. Every key claim requires support and counter-evidence searches.
-3. Added private project-state persistence under `<private-state-root>/deck-drafts/<YYYY-MM-DD>/<deck-title-slug>/`; real client state must not be stored in this public skill repo.
-4. Added `evidence.json` as a fact table and `qa_pptx.py --facts` for numeric consistency checks.
-5. Added reusable deck archetypes for strategy, IT/cloud transformation, sales proposal, investment analysis, vendor evaluation, executive decision meetings and workshops.
-6. Added stronger evidence discipline and QA checks so the skill does not invent data.
-7. Added IT consulting patterns for cloud migration, AI transformation, application modernization, data platform, security, business case and adoption.
-8. Added orchestration rules for subagent parallelism, page-module assembly, failure degradation and serial fallback.
-9. Added revision-loop rules for frozen-baseline changes.
-10. Added CI to run template generation, demo generation, `--facts` QA and pytest.
-11. Added `AGENTS.md` and `.github/copilot-instructions.md` so GitHub Copilot/Codex-style agents can use the repo directly.
+This version makes **research-heavy consulting mode** the default unless the user explicitly requests a short executive brief.
+
+Key changes:
+
+1. Added `references/content-density.md` with minimum analytical depth by page type.
+2. Added hard page-level requirements: required data points, evidence IDs, comparison basis, analysis method, insight annotations, decision implication and appendix link.
+3. Core analytical pages now require at least 2 registered evidence items and normally 4–8 in research-heavy mode.
+4. Added default deck-level evidence floors: for a typical 10-page core deck, 25–50 registered facts/calculations, 8–15 relevant sources, at least 5 data-bearing exhibits and at least 3 appendix pages.
+5. Expanded strategy, IT/cloud, AI, sales proposal, investment and vendor archetypes into detailed analytical blueprints with minimum evidence packs.
+6. Expanded page patterns so charts, roadmaps, architecture, option evaluation, risk and business-case pages include the analysis needed to support decisions.
+7. Added content-depth and deck-density QA. A polished but sparse deck now fails QA.
+8. Expanded `evidence.json` to capture period, entity, source tier, calculation formula, input fact IDs, caveat, confidence and page usage.
+9. Added `research-log.md` to retain query decisions, rejected evidence and unresolved conflicts.
+10. Updated `SKILL.md`, `AGENTS.md` and Copilot instructions so Codex/Copilot execute these rules rather than treating them as optional references.
+
+The repository also retains the earlier consulting delivery workflow: storyline → exhibit plan → evidence research → page production → consulting QA → rendering QA, with private project-state security, fact consistency checks, subagent orchestration and revision-mode support.
 
 ## Quick start
 
 ```bash
 python -m venv .venv
-source .venv/bin/activate  # Windows: .venv\\Scripts\\activate
+source .venv/bin/activate  # Windows: .venv\Scripts\activate
 pip install -r requirements.txt
 
 python scripts/create_template.py
@@ -34,10 +39,36 @@ pytest tests/ -q
 ## Required workflow
 
 ```text
-Step 1 需求澄清 → Step 2 Storyline → Step 3 Exhibit Plan → Step 4 Evidence Research → Step 5 确认/自动执行 → Step 6 逐页生成 → Step 7 咨询 QA → Step 8 渲染 QA
+Step 1 需求与深度确认
+  → Step 2 Storyline 与 coverage map
+  → Step 3 Exhibit Plan 与 content budget
+  → Step 4 Evidence Research
+  → Step 5 确认/自动执行
+  → Step 6 逐页生成
+  → Step 7 咨询与内容深度 QA
+  → Step 8 渲染 QA
 ```
 
-Evidence Research must create a research task list from all page briefs. Each key claim needs one support query and one counter-evidence query, with findings written back as number, unit, definition, source, retrieval date and caveat.
+Evidence Research must create a research task list from all page briefs. Each key claim needs one support query and one counter-evidence query, with findings written back as value, unit, period, entity, definition, source, source tier, retrieval date, calculation basis, caveat and confidence.
+
+Having a source is not enough. Every analytical page also needs a comparison or analytical method and enough evidence to support executive challenge.
+
+## Research-heavy default
+
+Unless the user explicitly asks for a concise executive brief, strategy, market, investment, vendor, cloud, AI, transformation and pre-sales decks should use research-heavy consulting mode.
+
+Every core page should normally include:
+
+- one evidence-backed action title;
+- one primary analytical exhibit;
+- 4–8 evidence items in research-heavy mode;
+- at least one comparison, trend, benchmark, decomposition, bridge, scenario or sensitivity;
+- two to four insight annotations;
+- a decision implication;
+- caveat and source line;
+- appendix backup for detailed methodology or data.
+
+Concept-only pages are not allowed by default. Covers, section dividers and explicitly requested conceptual frameworks are exceptions.
 
 ## Private state layer
 
@@ -47,7 +78,7 @@ Real project process artifacts must be stored outside this public skill repo. Pr
 <private-state-root>/deck-drafts/<YYYY-MM-DD>/<deck-title-slug>/
 ```
 
-The private draft directory should contain `storyline.md`, `briefs.yaml`, `evidence.json`, `assumptions.md`, `pages/`, `output/`, `baseline/`, and `changelog.md`. See `references/project-state.md`.
+The private draft directory should contain `storyline.md`, `briefs.yaml`, `evidence.json`, `research-log.md`, `assumptions.md`, `pages/`, `output/`, `baseline/`, and `changelog.md`. See `references/project-state.md`.
 
 If `baseline/` exists for a project, follow `references/revision-loop.md` instead of regenerating the full deck.
 
@@ -62,6 +93,7 @@ Hard prohibitions:
 - Do not let multiple agents write to the same `.pptx` concurrently.
 - Do not parallelize storyline writing.
 - Do not skip Evidence Research in environments without subagents; execute the same task list serially.
+- Do not generate generic narrative summaries when structured facts are required.
 - Do not store real client project state in this public skill repo.
 - Do not put NDA information in public search queries, commit messages, branch names or file paths.
 
@@ -74,6 +106,7 @@ AGENTS.md
   copilot-instructions.md
   workflows/ci.yml
 references/
+  content-density.md
   deck-archetypes.md
   exhibit-planning.md
   project-state.md
@@ -108,10 +141,13 @@ pytest tests/ -q
 
 ## Behavioral validation
 
-1. Demo with `--facts` should return zero QA findings.
-2. If a demo slide number is manually changed to conflict with `evidence.json`, `qa_pptx.py --facts` should report a `fact_consistency` error.
-3. A mixed-language cover such as `某银行数字化转型 strategy` should produce a terminology warning.
-4. If a user asks to modify page 3 after a frozen baseline exists, the agent should enter revision mode: diff the baseline, list impacted pages, update only affected artifacts, rerun scoped QA, and write a versioned changelog entry.
-5. Publicly accessible paths must contain no real project state files.
+1. A request for a strategy, market, investment, vendor, IT/cloud or AI deck should default to research-heavy mode unless the user explicitly requests a brief.
+2. Page briefs without required data points, comparison basis or analysis method should fail the production gate.
+3. Generic concept pages without quantified baselines, targets, trade-offs or implementation details should fail content-depth QA.
+4. Demo with `--facts` should return zero automated QA findings.
+5. If a demo slide number is manually changed to conflict with `evidence.json`, `qa_pptx.py --facts` should report a `fact_consistency` error.
+6. A mixed-language cover such as `某银行数字化转型 strategy` should produce a terminology warning.
+7. If a user asks to modify page 3 after a frozen baseline exists, the agent should enter revision mode: diff the baseline, list impacted pages, update only affected artifacts, rerun scoped QA, and write a versioned changelog entry.
+8. Publicly accessible paths must contain no real project state files.
 
 Generated binary PPTX files are intentionally not stored in the repository by default. Run `scripts/create_template.py` and `scripts/demo_generate_deck.py` to create demo outputs locally. Store real delivery references only in the selected private state root.
