@@ -36,6 +36,10 @@ Rules:
 6. Do not create multiple evidence IDs for one fact merely to pass the gate.
 7. Never fabricate or extrapolate unsupported numbers to increase density. Density pressure always strengthens Step 4 research; it never relaxes Evidence Discipline.
 
+### Numeric and qualitative evidence records
+
+`evidence.json` may contain both numeric and qualitative records. Numeric records have a finite numeric `value` and may participate in fact-consistency and data-density checks. Qualitative records may omit `value`, use a text `value`, or use `text_value`/`qualitative_value`; they remain registered and traceable but never count toward numeric-density thresholds. Malformed rows and invalid `used_on_pages` entries must not crash QA.
+
 Run final density checks with:
 
 ```bash
