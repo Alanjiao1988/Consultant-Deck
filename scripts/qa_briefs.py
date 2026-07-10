@@ -57,7 +57,7 @@ def _as_list(value: Any) -> list[Any]:
     return [value]
 
 
-def _load_yaml(path: Path) -> tuple[dict[str, Any], list[dict[str, Any]]]:
+def _load_yaml(path: Path) -> tuple[dict[str, Any], list[Any]]:
     data = yaml.safe_load(path.read_text(encoding="utf-8"))
     if isinstance(data, list):
         return {}, data
@@ -124,18 +124,19 @@ def run_qa(briefs_path: Path, evidence_path: Path | None = None) -> list[Finding
         return [Finding("error", None, "briefs", "No pages found in briefs YAML")]
 
     for index, page in enumerate(pages):
-        page_num = _page_number(page, index)
         if not isinstance(page, dict):
-            findings.append(Finding("error", page_num, "briefs", "Page brief must be a mapping"))
+            findings.append(Finding("error", index + 1, "briefs", "Page brief must be a mapping"))
             continue
 
+        page_num = _page_number(page, index)
         role = _page_role(page)
+        exempt = _is_exempt(page)
         if role == "appendix":
             appendix_pages += 1
-        elif role not in EXEMPT_ROLES:
+        elif not exempt:
             core_pages.append(page)
 
-        if _is_exempt(page):
+        if exempt:
             continue
 
         for field, message in REQUIRED_FIELDS.items():
