@@ -9,19 +9,21 @@ from __future__ import annotations
 import argparse
 import json
 import math
+import re
 from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Any
 
 import yaml
 
-
-EXEMPT_ROLES = {"cover", "section_divider", "divider", "navigation"}
+EXEMPT_ROLES = {"cover", "section_divider", "divider", "navigation", "agenda"}
 CONCEPT_ROLES = {"conceptual_framework", "concept", "framework"}
 REQUIRED_FIELDS = {
     "action_title": "Missing action title",
     "required_data_points": "Missing required data points",
+    "quantification": "Missing core quantification",
     "comparison_basis": "Missing comparison basis",
+    "benchmark": "Missing benchmark object or threshold",
     "analysis_method": "Missing analysis method",
     "primary_exhibit": "Missing primary exhibit",
     "insight_annotations": "Missing insight annotations",
@@ -57,7 +59,7 @@ def _as_list(value: Any) -> list[Any]:
     return [value]
 
 
-def _load_yaml(path: Path) -> tuple[dict[str, Any], list[Any]]:
+def _load_yaml(path: Path) -> tuple[dict[str, Any], list[dict[str, Any]]]:
     data = yaml.safe_load(path.read_text(encoding="utf-8"))
     if isinstance(data, list):
         return {}, data
@@ -113,12 +115,18 @@ def _is_exempt(page: dict[str, Any]) -> bool:
     return False
 
 
+def _has_numeric_title(title: str) -> bool:
+    return re.search(r"\d", title or "") is not None
+
+
 def run_qa(briefs_path: Path, evidence_path: Path | None = None) -> list[Finding]:
     deck_meta, pages = _load_yaml(briefs_path)
     evidence, evidence_count, sources = _load_evidence(evidence_path)
     findings: list[Finding] = []
     core_pages: list[dict[str, Any]] = []
     appendix_pages = 0
+    conceptual_pages = 0
+    eligible_pages = 0
 
     if not pages:
         return [Finding("error", None, "briefs", "No pages found in briefs YAML")]
@@ -130,18 +138,30 @@ def run_qa(briefs_path: Path, evidence_path: Path | None = None) -> list[Finding
 
         page_num = _page_number(page, index)
         role = _page_role(page)
-        exempt = _is_exempt(page)
         if role == "appendix":
             appendix_pages += 1
-        elif not exempt:
+        elif role not in EXEMPT_ROLES:
             core_pages.append(page)
+        if role not in EXEMPT_ROLES:
+            eligible_pages += 1
+        if role in CONCEPT_ROLES and bool(page.get("explicitly_requested")):
+            conceptual_pages += 1
 
-        if exempt:
+        if _is_exempt(page):
             continue
 
         for field, message in REQUIRED_FIELDS.items():
             if not _nonempty(page.get(field)):
                 findings.append(Finding("error", page_num, field, message))
+
+        title = str(page.get("action_title", ""))
+        if not _has_numeric_title(title):
+            title_quantification = page.get("title_quantification")
+            if not _nonempty(title_quantification):
+                findings.append(Finding(
+                    "error", page_num, "title_quantification",
+                    "A non-numeric action title requires a quantification research task or a justified non-numeric rationale",
+                ))
 
         data_points = _as_list(page.get("required_data_points"))
         insights = _as_list(page.get("insight_annotations"))
@@ -160,6 +180,22 @@ def run_qa(briefs_path: Path, evidence_path: Path | None = None) -> list[Finding
             findings.append(Finding("error", page_num, "evidence_budget", "Core analytical pages require at least two evidence IDs"))
         elif density == "research-heavy" and len(evidence_ids) < 4:
             findings.append(Finding("warning", page_num, "evidence_budget", "Research-heavy pages should normally use four to eight evidence items"))
+
+        quantification = page.get("quantification")
+        if isinstance(quantification, dict):
+            if not any(_nonempty(quantification.get(key)) for key in ("baseline", "target", "gap", "range", "metric", "values")):
+                findings.append(Finding(
+                    "error", page_num, "quantification",
+                    "Quantification must specify a baseline, target, gap, range, metric or values",
+                ))
+
+        benchmark = page.get("benchmark")
+        if isinstance(benchmark, dict):
+            if not any(_nonempty(benchmark.get(key)) for key in ("entity", "entities", "value", "values", "threshold", "source", "type")):
+                findings.append(Finding(
+                    "error", page_num, "benchmark",
+                    "Benchmark must identify an entity, value, threshold, type or source",
+                ))
 
         for evidence_id in evidence_ids:
             if evidence_path is not None and evidence_id not in evidence:
@@ -198,6 +234,19 @@ def run_qa(briefs_path: Path, evidence_path: Path | None = None) -> list[Finding
         appendix_floor = max(1, math.ceil(core_count * 0.25)) if core_count >= 4 else 0
         if appendix_pages < appendix_floor:
             findings.append(Finding("warning", None, "appendix_depth", f"Only {appendix_pages} appendix pages for {core_count} core pages; expected at least about {appendix_floor}"))
+
+    if eligible_pages:
+        max_framework_share = deck_meta.get("max_framework_share", 0.25)
+        try:
+            max_framework_share = float(max_framework_share)
+        except (TypeError, ValueError):
+            max_framework_share = 0.25
+        share = conceptual_pages / eligible_pages
+        if share > max_framework_share:
+            findings.append(Finding(
+                "error", None, "framework_share",
+                f"Conceptual framework pages are {share:.0%} of eligible pages; maximum is {max_framework_share:.0%}",
+            ))
 
     return findings
 
