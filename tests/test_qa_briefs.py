@@ -48,7 +48,7 @@ def valid_page():
         "page": 2,
         "page_role": "core_argument",
         "key_question": "What drives the performance gap?",
-        "action_title": "Three operating drivers explain most of the performance gap",
+        "action_title": "3 operating drivers explain most of the 6-point performance gap",
         "content_density_target": "research-heavy",
         "evidence_ids": ["F001", "F002", "F003", "F004"],
         "required_data_points": [
@@ -56,7 +56,9 @@ def valid_page():
             "peer median",
             "segment decomposition",
         ],
+        "quantification": {"baseline": "24%", "target": "30%", "gap": "6 points"},
         "comparison_basis": {"type": "peer_and_historical", "periods": ["FY2024", "FY2025"]},
+        "benchmark": {"type": "peer median", "value": "30%", "source": "Source 2"},
         "analysis_method": "variance_bridge",
         "primary_exhibit": "driver bridge plus peer benchmark",
         "insight_annotations": ["Driver A explains half the gap", "Driver B remains above peer median"],
@@ -79,6 +81,8 @@ def test_valid_research_heavy_page_passes(tmp_path):
 
 def test_missing_analytical_fields_fail(tmp_path):
     page = valid_page()
+    page["quantification"] = None
+    page["benchmark"] = {}
     page["comparison_basis"] = None
     page["analysis_method"] = ""
     page["insight_annotations"] = ["Only one insight"]
@@ -87,10 +91,29 @@ def test_missing_analytical_fields_fail(tmp_path):
     facts = write_json(tmp_path / "evidence.json", evidence_records())
     findings = run_qa(briefs, facts)
     checks = {(finding.severity, finding.check) for finding in findings}
+    assert ("error", "quantification") in checks
+    assert ("error", "benchmark") in checks
     assert ("error", "comparison_basis") in checks
     assert ("error", "analysis_method") in checks
     assert ("error", "content_depth") in checks
     assert ("error", "evidence_budget") in checks
+
+
+def test_non_numeric_title_requires_quantification_task(tmp_path):
+    page = valid_page()
+    page["action_title"] = "Operating redesign should precede pricing changes"
+    briefs = write_yaml(tmp_path / "briefs.yaml", {"pages": [page]})
+    facts = write_json(tmp_path / "evidence.json", evidence_records())
+    findings = run_qa(briefs, facts)
+    assert any(f.check == "title_quantification" and f.severity == "error" for f in findings)
+
+    page["title_quantification"] = {
+        "status": "research_task",
+        "task": "Find a defensible margin-gap number for the title",
+    }
+    briefs = write_yaml(tmp_path / "briefs_with_task.yaml", {"pages": [page]})
+    findings = run_qa(briefs, facts)
+    assert not any(f.check == "title_quantification" for f in findings)
 
 
 def test_unknown_evidence_id_fails(tmp_path):
@@ -128,3 +151,23 @@ def test_explicit_conceptual_framework_is_exempt(tmp_path):
     )
     findings = run_qa(briefs)
     assert not any(finding.severity == "error" for finding in findings)
+
+
+def test_framework_share_above_limit_fails(tmp_path):
+    concept = {
+        "page_role": "conceptual_framework",
+        "explicitly_requested": True,
+        "action_title": "Requested framework",
+    }
+    pages = [
+        {"page": 2, **concept},
+        {"page": 3, **concept},
+        valid_page() | {"page": 4},
+        valid_page() | {"page": 5},
+    ]
+    briefs = write_yaml(
+        tmp_path / "briefs.yaml",
+        {"content_density_target": "research-heavy", "max_framework_share": 0.25, "pages": pages},
+    )
+    findings = run_qa(briefs)
+    assert any(f.check == "framework_share" and f.severity == "error" for f in findings)
