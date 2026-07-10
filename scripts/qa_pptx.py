@@ -77,9 +77,16 @@ def cm(value):
 
 
 def shape_text(shape):
-    if not getattr(shape, "has_text_frame", False):
-        return ""
-    return "\n".join(p.text for p in shape.text_frame.paragraphs).strip()
+    if getattr(shape, "has_text_frame", False):
+        return "\n".join(p.text for p in shape.text_frame.paragraphs).strip()
+    if getattr(shape, "has_table", False):
+        return "\n".join(
+            cell.text
+            for row in shape.table.rows
+            for cell in row.cells
+            if cell.text
+        ).strip()
+    return ""
 
 
 def has_cjk(text):
@@ -288,11 +295,16 @@ def run_fact_consistency(prs, facts):
         return []
     findings = []
     tokens = []
+    slide_chart_values = {}
+    slide_text = {}
     for idx, slide in enumerate(prs.slides, start=1):
         texts = [shape_text(shape) for shape in slide.shapes if shape_text(shape)]
         if is_cover_or_divider(idx, texts):
             continue
-        for text in text_shapes_for_fact_scan(slide, idx):
+        body_parts = list(text_shapes_for_fact_scan(slide, idx))
+        slide_text[idx] = "\n".join(body_parts)
+        slide_chart_values[idx] = chart_values(slide)
+        for text in body_parts:
             tokens.extend(extract_number_tokens(text, idx))
 
     for token in tokens:
@@ -306,9 +318,14 @@ def run_fact_consistency(prs, facts):
     for fact in facts:
         for page in fact["used_on_pages"]:
             page_tokens = [token for token in tokens if token.slide == page and unit_compatible(token.unit, fact["unit"])]
-            if not page_tokens:
+            if any(values_equal(token.value, fact["value"]) for token in page_tokens):
                 continue
-            if not any(values_equal(token.value, fact["value"]) for token in page_tokens):
+            if any(values_equal(value, fact["value"]) for value in slide_chart_values.get(page, [])):
+                continue
+            raw_pattern = re.compile(rf"(?<![\d.]){re.escape(f'{fact['value']:g}')}(?![\d.])")
+            if raw_pattern.search(slide_text.get(page, "")):
+                continue
+            if page_tokens:
                 seen = ", ".join(token.text for token in page_tokens[:5])
                 findings.append(Finding(
                     "error", page, "fact_consistency",
