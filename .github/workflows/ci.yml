@@ -41,18 +41,31 @@ jobs:
           from dataclasses import asdict
           from pathlib import Path
           import json
-          from scripts.qa_pptx import run_qa
+          import traceback
 
-          findings = run_qa(
-              Path("examples/demo_ai_transformation.pptx"),
-              Path("examples/demo_ai_transformation.evidence.json"),
-              Path("examples/demo_ai_transformation.briefs.yaml"),
-          )
-          Path("qa-findings.json").write_text(
-              json.dumps([asdict(item) for item in findings], ensure_ascii=False, indent=2),
+          report_path = Path("qa-findings.json")
+          try:
+              from scripts.qa_pptx import run_qa
+              findings = run_qa(
+                  Path("examples/demo_ai_transformation.pptx"),
+                  Path("examples/demo_ai_transformation.evidence.json"),
+                  Path("examples/demo_ai_transformation.briefs.yaml"),
+              )
+              payload = {
+                  "status": "ok",
+                  "findings": [asdict(item) for item in findings],
+              }
+          except Exception:
+              payload = {
+                  "status": "exception",
+                  "findings": [],
+                  "traceback": traceback.format_exc(),
+              }
+          report_path.write_text(
+              json.dumps(payload, ensure_ascii=False, indent=2),
               encoding="utf-8",
           )
-          print(Path("qa-findings.json").read_text(encoding="utf-8"))
+          print(report_path.read_text(encoding="utf-8"))
           PY
 
       - name: Upload QA report
@@ -69,7 +82,11 @@ jobs:
           from pathlib import Path
           import json
 
-          findings = json.loads(Path("qa-findings.json").read_text(encoding="utf-8"))
+          report = json.loads(Path("qa-findings.json").read_text(encoding="utf-8"))
+          if report.get("status") != "ok":
+              print(report.get("traceback", "Unknown QA exception"))
+              raise SystemExit(1)
+          findings = report.get("findings", [])
           if findings:
               for finding in findings:
                   print(finding)
