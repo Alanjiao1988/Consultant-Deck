@@ -14,6 +14,61 @@ Unless the user explicitly requests a short executive brief, use **research-heav
 
 The page count is not a target by itself. Add pages when the available evidence requires separate analysis, and remove pages that do not contribute to the decision.
 
+## Hard data-density gates
+
+Data density means **verified and registered quantitative evidence**, not decorative numbers or fabricated precision.
+
+For the body of each non-exempt page:
+
+| Density mode | Minimum visible registered numeric facts | Normal target |
+|---|---:|---:|
+| Executive brief | 1 | 1–3 |
+| Standard consulting | 2 | 2–4 |
+| Research-heavy consulting | 3 | 3–5 or more when the exhibit requires it |
+
+Rules:
+
+1. Count unique facts or calculations already registered in `evidence.json`; repeated display of the same number does not increase the count.
+2. The action title does not by itself satisfy the body-density gate. The body exhibit must carry the proof.
+3. Covers, section dividers, navigation pages and explicitly requested conceptual-framework pages are exempt.
+4. Explicit conceptual-framework pages should normally be no more than 25% of eligible pages. A project may set a limit between 20% and 30%, but must record the reason.
+5. If a page cannot meet the floor, return it to Evidence Research, weaken or delete the claim, or mark it as an explicitly requested framework page with a documented rationale.
+6. Do not create multiple evidence IDs for one fact merely to pass the gate.
+7. Never fabricate or extrapolate unsupported numbers to increase density. Density pressure always strengthens Step 4 research; it never relaxes Evidence Discipline.
+
+Run final density checks with:
+
+```bash
+python scripts/qa_pptx.py <deck.pptx> \
+  --facts <private-draft-dir>/evidence.json \
+  --briefs <private-draft-dir>/briefs.yaml
+```
+
+### Qualitative-claim rule
+
+Strong qualitative wording in the body must be quantified or bounded. Terms such as `显著`, `大幅`, `明显`, `快速`, `领先`, `大量`, `significantly`, `substantially`, `rapidly` and `materially` should normally be accompanied in the same statement by a number, range, threshold or explicitly stated qualitative basis.
+
+Examples:
+
+- Weak: `自动化将显著降低成本。`
+- Better: `自动化可将目标流程成本降低约 18%–24%。`
+- Acceptable when numbers are unavailable: `访谈显示控制复杂度是首要障碍；由于缺乏可比成本数据，本页不量化影响。`
+
+`qa_pptx.py` flags unsupported strong qualitative claims as warnings.
+
+### Action-title quantification rule
+
+If an analytical action title contains no number, range or threshold, Step 4 must create a `title_quantification` task to find a defensible quantitative anchor.
+
+A non-numeric title is allowed only when:
+
+1. the title describes a genuinely qualitative decision or design principle; or
+2. three reasonable searches found no defensible number;
+3. the failed search and rationale are recorded; and
+4. the body still meets its evidence and comparison requirements.
+
+Do not force a misleading number into a title merely to satisfy this preference.
+
 ## Core principle: no decorative concept pages
 
 A page is not complete merely because it has an action title and a diagram. Concept-only pages are allowed only when the user explicitly asks for a conceptual framework or when the page is a navigation/section divider.
@@ -28,6 +83,7 @@ Every core page must contain:
 6. A decision implication, recommendation or next action.
 7. A caveat, assumption or boundary condition where material.
 8. A source line with source names, dates and calculation basis.
+9. A defined `quantification` statement and a concrete `benchmark` object or threshold.
 
 A page with only icons, generic arrows, a five-box framework or unquantified maturity labels fails the content-density standard.
 
@@ -120,7 +176,8 @@ Include:
 - resource or budget implications;
 - target KPIs by wave;
 - critical path and what can run in parallel;
-- risks that could delay each wave.
+- risks that could delay each wave;
+- quantified scope for each wave, such as system count, user count, budget, workload or benefit milestone.
 
 A roadmap with generic phases such as Discover, Design, Build and Run is insufficient unless each phase contains specific outputs and gates.
 
@@ -172,15 +229,18 @@ Every page brief should include these fields in addition to the standard key que
 - `page_role`: core argument, supporting analysis, recommendation, decision or appendix;
 - `evidence_ids`: IDs already registered in `evidence.json`;
 - `required_data_points`: the specific numbers or facts that must appear;
-- `comparison_basis`: peer, period, scenario, segment or benchmark;
+- `quantification`: the principal baseline, target, gap, range or metric;
+- `comparison_basis`: peer, period, scenario, segment or analytical comparison type;
+- `benchmark`: the actual comparison entity, value, range or threshold and its source;
 - `analysis_method`: trend, bridge, benchmark, decomposition, scoring, sensitivity, scenario or synthesis;
+- `title_quantification`: quantitative title anchor, research task or justified non-numeric rationale;
 - `insight_annotations`: two to four implications to call out on the exhibit;
 - `decision_implication`: what the audience should decide or do;
 - `appendix_link`: backup page containing methodology or detailed data;
 - `content_density_target`: executive, standard or research-heavy;
 - `unresolved_gaps`: missing evidence that must be researched, assumed or removed.
 
-No page should enter production while `required_data_points` or `comparison_basis` is empty, except covers, section dividers and explicitly requested conceptual pages.
+No page should enter production while `required_data_points`, `quantification`, `comparison_basis` or `benchmark` is empty, except covers, section dividers and explicitly requested conceptual pages.
 
 ## Appendix standard
 
@@ -202,12 +262,14 @@ Every appendix page should be referenced from at least one core page or explicit
 
 Do not solve content gaps by shrinking fonts or pasting long paragraphs. Increase analytical density through:
 
+- dense but readable summary tables;
 - small multiples;
-- summary tables with highlighted rows;
+- chart-plus-data-table combinations;
+- benchmark bars;
 - variance bridges;
 - annotated charts;
 - side-by-side comparisons;
-- driver trees;
+- quantified driver trees;
 - scenario tables;
 - insight rails;
 - appendix links.
@@ -219,9 +281,11 @@ If a page cannot remain readable at the design-token font sizes, split the analy
 Before page production, the main agent must confirm:
 
 - every core page has a defined comparison or analytical method;
+- every analytical page has a concrete quantification and benchmark;
 - every major conclusion has enough evidence to survive challenge;
 - the deck contains quantified impact, implementation detail and risk conditions;
 - appendix coverage is planned rather than added at the end;
-- no page exists solely because it is common in a consulting template.
+- no page exists solely because it is common in a consulting template;
+- data-density pressure has not led to invented or weakly supported numbers.
 
 A deck that is visually polished but fails these checks is incomplete.
