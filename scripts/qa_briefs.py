@@ -235,7 +235,9 @@ def run_qa(briefs_path: Path, evidence_path: Path | None = None) -> list[Finding
         if appendix_pages < appendix_floor:
             findings.append(Finding("warning", None, "appendix_depth", f"Only {appendix_pages} appendix pages for {core_count} core pages; expected at least about {appendix_floor}"))
 
-    if eligible_pages:
+    # Framework share is meaningful only for a multi-page deck. A one-page or
+    # very small explicitly requested framework artifact should not be rejected.
+    if eligible_pages >= 4:
         max_framework_share = deck_meta.get("max_framework_share", 0.25)
         try:
             max_framework_share = float(max_framework_share)
