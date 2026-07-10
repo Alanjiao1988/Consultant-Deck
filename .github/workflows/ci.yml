@@ -35,10 +35,12 @@ jobs:
             --fail-on-warning \
             --json
 
-      - name: Require zero PPTX QA findings
+      - name: Generate PPTX QA report
         run: |
           python - <<'PY'
+          from dataclasses import asdict
           from pathlib import Path
+          import json
           from scripts.qa_pptx import run_qa
 
           findings = run_qa(
@@ -46,6 +48,28 @@ jobs:
               Path("examples/demo_ai_transformation.evidence.json"),
               Path("examples/demo_ai_transformation.briefs.yaml"),
           )
+          Path("qa-findings.json").write_text(
+              json.dumps([asdict(item) for item in findings], ensure_ascii=False, indent=2),
+              encoding="utf-8",
+          )
+          print(Path("qa-findings.json").read_text(encoding="utf-8"))
+          PY
+
+      - name: Upload QA report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: consulting-deck-qa-report
+          path: qa-findings.json
+          if-no-files-found: error
+
+      - name: Require zero PPTX QA findings
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import json
+
+          findings = json.loads(Path("qa-findings.json").read_text(encoding="utf-8"))
           if findings:
               for finding in findings:
                   print(finding)
