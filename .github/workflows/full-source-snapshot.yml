@@ -1,0 +1,19 @@
+name: Full Source Snapshot
+
+on:
+  pull_request:
+
+jobs:
+  snapshot:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Upload full source snapshot
+        uses: actions/upload-artifact@v4
+        with:
+          name: consultant-deck-full-source
+          path: .
+          include-hidden-files: true
+          if-no-files-found: error
