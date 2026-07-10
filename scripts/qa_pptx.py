@@ -3,7 +3,9 @@ from __future__ import annotations
 
 import argparse
 import json
+import math
 import re
+import sys
 import zipfile
 from dataclasses import asdict, dataclass
 from pathlib import Path
@@ -42,16 +44,25 @@ BANNED_TERMS = {
 EXEMPT_ROLES = {"cover", "section_divider", "divider", "navigation", "agenda"}
 CONCEPT_ROLES = {"conceptual_framework", "concept", "framework"}
 QUALITATIVE_PATTERNS = {
-    "显著": re.compile(r"显著(?:提升|降低|增长|下降|改善|增加|减少)"),
-    "大幅": re.compile(r"大幅(?:提升|降低|增长|下降|改善|增加|减少)"),
-    "明显": re.compile(r"明显(?:高于|低于|提升|降低|增长|下降|改善)"),
-    "快速": re.compile(r"快速(?:增长|提升|下降|扩张|收缩)"),
-    "领先": re.compile(r"领先(?:于|同业|行业|市场)"),
-    "大量": re.compile(r"大量(?:节省|减少|增加|增长)"),
+    # Warning-level recall is intentionally broad: the same statement must contain
+    # a number, range or threshold when these strength signals are used.
+    "显著": re.compile(r"显著"),
+    "大幅": re.compile(r"大幅"),
+    "明显": re.compile(r"明显"),
+    "快速": re.compile(r"快速"),
+    "大量": re.compile(r"大量"),
+    "领先/优于": re.compile(r"(?:领先|优于|远高于|远低于|更好|更高|更低)"),
     "significantly": re.compile(r"\bsignificantly\b", re.IGNORECASE),
     "substantially": re.compile(r"\bsubstantially\b", re.IGNORECASE),
     "rapidly": re.compile(r"\brapidly\b", re.IGNORECASE),
     "materially": re.compile(r"\bmaterially\b", re.IGNORECASE),
+    "dramatically": re.compile(r"\bdramatically\b", re.IGNORECASE),
+    "considerably": re.compile(r"\bconsiderably\b", re.IGNORECASE),
+    "vastly": re.compile(r"\bvastly\b", re.IGNORECASE),
+    "far/much comparative": re.compile(
+        r"\b(?:far|much)\s+(?:better|worse|higher|lower|faster|slower)\b",
+        re.IGNORECASE,
+    ),
     "leading": re.compile(r"\bleading\s+(?:peers?|the industry|the market)\b", re.IGNORECASE),
 }
 
@@ -372,7 +383,15 @@ def is_density_exempt(brief: dict[str, Any]) -> bool:
 
 
 def run_data_density(prs: Presentation, facts: list[dict[str, Any]], meta: dict[str, Any], briefs: dict[int, dict[str, Any]]) -> list[Finding]:
+    analytical_pages = [page for page, brief in briefs.items() if not is_density_exempt(brief)]
     if not facts:
+        if analytical_pages:
+            pages = ", ".join(str(page) for page in sorted(analytical_pages))
+            return [Finding(
+                "error", None, "data_density",
+                "No registered numeric facts are available for non-exempt analytical "
+                f"pages ({pages}); an empty or missing fact table cannot bypass density QA",
+            )]
         return []
     findings: list[Finding] = []
     conceptual_pages = 0
@@ -414,8 +433,9 @@ def run_data_density(prs: Presentation, facts: list[dict[str, Any]], meta: dict[
 
 def run_qualitative_claim_scan(slide: Any, slide_num: int) -> list[Finding]:
     findings: list[Finding] = []
-    title_shape = first_top_shape(slide)
-    body = "\n".join(text_shapes_for_fact_scan(slide, exclude_shape=title_shape))
+    # Scan titles as well as body text. Brief-level title quantification is valuable,
+    # but final-file QA must still catch a strong unsupported title on its own.
+    body = "\n".join(text_shapes_for_fact_scan(slide))
     numeric_signal = re.compile(r"\d|%|\$|€|£|倍|点|bps?\b", re.IGNORECASE)
     seen = set()
     for sentence in re.split(r"[\n。！？!?;；]+", body):
@@ -429,6 +449,117 @@ def run_qualitative_claim_scan(slide: Any, slide_num: int) -> list[Finding]:
                     f"Qualitative claim '{label}' has no number or range in the same statement",
                 ))
                 seen.add(label)
+    return findings
+
+
+def _font_size_pt(paragraph: Any, default: float = 11.0) -> float:
+    sizes = []
+    for run in paragraph.runs:
+        size = getattr(run.font, "size", None)
+        if size is not None:
+            sizes.append(float(size.pt))
+    return max(sizes) if sizes else default
+
+
+def _weighted_text_width(text: str, font_size_pt: float) -> float:
+    units = 0.0
+    for char in text:
+        if char.isspace():
+            units += 0.30
+        elif re.match(r"[\u3400-\u9fff]", char):
+            units += 1.0
+        elif char.isalnum():
+            units += 0.56
+        else:
+            units += 0.45
+    return units * font_size_pt
+
+
+def _text_frame_may_overflow(text_frame: Any, width_emu: int, height_emu: int) -> bool:
+    if not text_frame or not any(paragraph.text.strip() for paragraph in text_frame.paragraphs):
+        return False
+    auto_size = getattr(text_frame, "auto_size", None)
+    if auto_size is not None and "TEXT_TO_FIT_SHAPE" in str(auto_size):
+        return False
+
+    margin_left = int(getattr(text_frame, "margin_left", 0) or 0)
+    margin_right = int(getattr(text_frame, "margin_right", 0) or 0)
+    margin_top = int(getattr(text_frame, "margin_top", 0) or 0)
+    margin_bottom = int(getattr(text_frame, "margin_bottom", 0) or 0)
+    usable_width_pt = max(1.0, (width_emu - margin_left - margin_right) / 12700)
+    usable_height_pt = max(1.0, (height_emu - margin_top - margin_bottom) / 12700)
+
+    estimated_height = 0.0
+    for paragraph in text_frame.paragraphs:
+        text = paragraph.text or " "
+        font_size = _font_size_pt(paragraph)
+        wrapped_lines = max(1, math.ceil(_weighted_text_width(text, font_size) / usable_width_pt))
+        estimated_height += wrapped_lines * font_size * 1.22
+    return estimated_height > usable_height_pt * 1.15
+
+
+def run_text_overflow_scan(slide: Any, slide_num: int) -> list[Finding]:
+    findings: list[Finding] = []
+    for shape in slide.shapes:
+        if getattr(shape, "has_text_frame", False):
+            if _text_frame_may_overflow(shape.text_frame, shape.width, shape.height):
+                findings.append(Finding(
+                    "warning", slide_num, "text_overflow",
+                    f"Text may overflow shape '{getattr(shape, 'name', 'unnamed')}' (heuristic estimate)",
+                ))
+        if getattr(shape, "has_table", False):
+            seen_cells = set()
+            for row_index, row in enumerate(shape.table.rows):
+                for col_index, cell in enumerate(row.cells):
+                    cell_key = id(cell._tc)
+                    if cell_key in seen_cells:
+                        continue
+                    seen_cells.add(cell_key)
+                    width = shape.table.columns[col_index].width
+                    height = row.height
+                    if _text_frame_may_overflow(cell.text_frame, width, height):
+                        findings.append(Finding(
+                            "warning", slide_num, "text_overflow",
+                            f"Table cell R{row_index + 1}C{col_index + 1} may overflow (heuristic estimate)",
+                        ))
+    return findings
+
+
+def _intersection_ratio(first: Any, second: Any) -> float:
+    first_left, first_top = cm(first.left), cm(first.top)
+    second_left, second_top = cm(second.left), cm(second.top)
+    first_right, first_bottom = first_left + cm(first.width), first_top + cm(first.height)
+    second_right, second_bottom = second_left + cm(second.width), second_top + cm(second.height)
+    overlap_width = min(first_right, second_right) - max(first_left, second_left)
+    overlap_height = min(first_bottom, second_bottom) - max(first_top, second_top)
+    if overlap_width <= 0.10 or overlap_height <= 0.10:
+        return 0.0
+    intersection = overlap_width * overlap_height
+    smaller_area = min(cm(first.width) * cm(first.height), cm(second.width) * cm(second.height))
+    return intersection / smaller_area if smaller_area > 0 else 0.0
+
+
+def run_text_overlap_scan(slide: Any, slide_num: int) -> list[Finding]:
+    candidates = [
+        shape for shape in slide.shapes
+        if getattr(shape, "has_text_frame", False)
+        and not getattr(shape, "has_table", False)
+        and not getattr(shape, "has_chart", False)
+        and shape_text(shape)
+    ]
+    findings: list[Finding] = []
+    for index, first in enumerate(candidates):
+        for second in candidates[index + 1:]:
+            ratio = _intersection_ratio(first, second)
+            if ratio >= 0.20:
+                findings.append(Finding(
+                    "warning", slide_num, "text_overlap",
+                    "Independent text shapes overlap materially: "
+                    f"'{getattr(first, 'name', 'unnamed')}' and '{getattr(second, 'name', 'unnamed')}' "
+                    f"({ratio:.0%} of the smaller box)",
+                ))
+                if len(findings) >= 10:
+                    return findings
     return findings
 
 
@@ -472,26 +603,54 @@ def run_qa(path: Path, facts_path: Path | None = None, briefs_path: Path | None 
             if left < -0.05 or top < -0.05 or right > SLIDE_W_CM + 0.05 or bottom > SLIDE_H_CM + 0.05:
                 findings.append(Finding("error", index, "bounds", "Shape out of bounds"))
 
+        findings.extend(run_text_overflow_scan(slide, index))
+        findings.extend(run_text_overlap_scan(slide, index))
+
     findings.extend(run_fact_consistency(prs, facts))
     findings.extend(run_data_density(prs, facts, briefs_meta, briefs))
     return findings
 
 
 def main(argv: list[str] | None = None) -> int:
-    parser = argparse.ArgumentParser()
+    parser = argparse.ArgumentParser(description="Run automated consulting-deck PPTX QA")
     parser.add_argument("pptx", type=Path)
     parser.add_argument("--json", action="store_true")
     parser.add_argument("--facts", type=Path, default=None, help="Optional evidence.json fact table")
     parser.add_argument("--briefs", type=Path, default=None, help="Optional briefs.yaml for page roles and density thresholds")
     args = parser.parse_args(argv)
     findings = run_qa(args.pptx, args.facts, args.briefs)
+
+    modules = [
+        "fonts", "action-title", "source-line", "qualitative-claims",
+        "terminology", "bounds", "text-overflow", "text-overlap",
+    ]
+    if args.facts is not None:
+        modules.append("fact-consistency")
+    if args.briefs is not None:
+        modules.append("data-density")
+    fact_count = len(load_facts(args.facts)) if args.facts is not None else 0
+    brief_count = len(load_briefs(args.briefs)[1]) if args.briefs is not None else 0
+    errors = sum(item.severity == "error" for item in findings)
+    warnings = sum(item.severity == "warning" for item in findings)
+    status = (
+        f"QA passed: 0 findings; modules={','.join(modules)}; "
+        f"facts={fact_count if args.facts is not None else 'not-supplied'}; "
+        f"briefs={brief_count if args.briefs is not None else 'not-supplied'}"
+        if not findings else
+        f"QA completed: errors={errors}, warnings={warnings}; modules={','.join(modules)}; "
+        f"facts={fact_count if args.facts is not None else 'not-supplied'}; "
+        f"briefs={brief_count if args.briefs is not None else 'not-supplied'}"
+    )
+
     if args.json:
         print(json.dumps([asdict(item) for item in findings], ensure_ascii=False, indent=2))
+        print(status, file=sys.stderr)
     else:
         for finding in findings:
             where = f"slide {finding.slide}" if finding.slide is not None else "deck"
             print(f"[{finding.severity}] {where} {finding.check}: {finding.message}")
-    return 1 if any(item.severity == "error" for item in findings) else 0
+        print(status)
+    return 1 if errors else 0
 
 
 if __name__ == "__main__":

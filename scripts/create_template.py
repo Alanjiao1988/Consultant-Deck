@@ -1,4 +1,5 @@
 """Generate a reusable consulting template PPTX."""
+import argparse
 from pathlib import Path
 import sys
 from pptx import Presentation
@@ -52,5 +53,18 @@ def generate(output=ROOT / "assets" / "consulting_template.pptx"):
     print(output)
 
 
+def main(argv=None):
+    parser = argparse.ArgumentParser(description="Generate the reusable consulting template PPTX")
+    parser.add_argument(
+        "--output",
+        type=Path,
+        default=ROOT / "assets" / "consulting_template.pptx",
+        help="Output PPTX path",
+    )
+    args = parser.parse_args(argv)
+    generate(args.output)
+    return 0
+
+
 if __name__ == "__main__":
-    generate()
+    raise SystemExit(main())

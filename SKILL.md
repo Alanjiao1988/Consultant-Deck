@@ -246,7 +246,10 @@ python scripts/qa_pptx.py <deck.pptx> \
 - source line；
 - action title；
 - 字体 XML；
-- 边界、溢出、重叠、对齐和页码。
+- 画布边界；
+- 启发式文本溢出与独立文本框重叠。
+
+启发式检查不能替代渲染器级 QA。精确对齐、视觉层级、页码连续性和复杂组合图层仍必须通过渲染切图或人工检查确认。
 
 Demo 和 CI 要求零 findings。真实项目 warnings 必须逐项审阅、修复或记录批准理由。
 
