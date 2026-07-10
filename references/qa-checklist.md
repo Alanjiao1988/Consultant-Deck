@@ -97,7 +97,17 @@ These are quality floors, not reasons to split facts artificially. If the topic 
 
 ## Automated QA
 
-Run:
+Run page-brief and evidence-budget QA before production:
+
+```bash
+python scripts/qa_briefs.py <private-draft-dir>/briefs.yaml \
+  --facts <private-draft-dir>/evidence.json \
+  --json
+```
+
+Resolve all errors before freezing the baseline. Review warnings explicitly; research-heavy evidence-budget and appendix-depth warnings should normally be fixed rather than ignored.
+
+After PPTX generation, run:
 
 ```bash
 python scripts/qa_pptx.py path/to/deck.pptx --facts path/to/evidence.json
