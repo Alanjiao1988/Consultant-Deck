@@ -25,11 +25,73 @@ jobs:
       - name: Generate template
         run: python scripts/create_template.py
 
-      - name: Generate demo deck and evidence
+      - name: Generate data-rich demo deck, evidence and briefs
         run: python scripts/demo_generate_deck.py
 
-      - name: Run QA with fact table
-        run: python scripts/qa_pptx.py examples/demo_ai_transformation.pptx --facts examples/demo_ai_transformation.evidence.json --json
+      - name: Run page-brief quantification QA
+        run: |
+          python scripts/qa_briefs.py examples/demo_ai_transformation.briefs.yaml \
+            --facts examples/demo_ai_transformation.evidence.json \
+            --fail-on-warning \
+            --json
+
+      - name: Generate PPTX QA report
+        run: |
+          python - <<'PY'
+          from dataclasses import asdict
+          from pathlib import Path
+          import json
+          import traceback
+
+          report_path = Path("qa-findings.json")
+          try:
+              from scripts.qa_pptx import run_qa
+              findings = run_qa(
+                  Path("examples/demo_ai_transformation.pptx"),
+                  Path("examples/demo_ai_transformation.evidence.json"),
+                  Path("examples/demo_ai_transformation.briefs.yaml"),
+              )
+              payload = {
+                  "status": "ok",
+                  "findings": [asdict(item) for item in findings],
+              }
+          except Exception:
+              payload = {
+                  "status": "exception",
+                  "findings": [],
+                  "traceback": traceback.format_exc(),
+              }
+          report_path.write_text(
+              json.dumps(payload, ensure_ascii=False, indent=2),
+              encoding="utf-8",
+          )
+          print(report_path.read_text(encoding="utf-8"))
+          PY
+
+      - name: Upload QA report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: consulting-deck-qa-report
+          path: qa-findings.json
+          if-no-files-found: error
+
+      - name: Require zero PPTX QA findings
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import json
+
+          report = json.loads(Path("qa-findings.json").read_text(encoding="utf-8"))
+          if report.get("status") != "ok":
+              print(report.get("traceback", "Unknown QA exception"))
+              raise SystemExit(1)
+          findings = report.get("findings", [])
+          if findings:
+              for finding in findings:
+                  print(finding)
+              raise SystemExit(1)
+          PY
 
       - name: Run tests
         run: pytest tests/ -q
