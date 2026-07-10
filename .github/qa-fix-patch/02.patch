@@ -1,0 +1,144 @@
++    overlap_height = min(first_bottom, second_bottom) - max(first_top, second_top)
++    if overlap_width <= 0.10 or overlap_height <= 0.10:
++        return 0.0
++    intersection = overlap_width * overlap_height
++    smaller_area = min(cm(first.width) * cm(first.height), cm(second.width) * cm(second.height))
++    return intersection / smaller_area if smaller_area > 0 else 0.0
++
++
++def run_text_overlap_scan(slide: Any, slide_num: int) -> list[Finding]:
++    candidates = [
++        shape for shape in slide.shapes
++        if getattr(shape, "has_text_frame", False)
++        and not getattr(shape, "has_table", False)
++        and not getattr(shape, "has_chart", False)
++        and shape_text(shape)
++    ]
++    findings: list[Finding] = []
++    for index, first in enumerate(candidates):
++        for second in candidates[index + 1:]:
++            ratio = _intersection_ratio(first, second)
++            if ratio >= 0.20:
++                findings.append(Finding(
++                    "warning", slide_num, "text_overlap",
++                    "Independent text shapes overlap materially: "
++                    f"'{getattr(first, 'name', 'unnamed')}' and '{getattr(second, 'name', 'unnamed')}' "
++                    f"({ratio:.0%} of the smaller box)",
++                ))
++                if len(findings) >= 10:
++                    return findings
++    return findings
++
++
+ def run_qa(path: Path, facts_path: Path | None = None, briefs_path: Path | None = None) -> list[Finding]:
+     prs = Presentation(str(path))
+     facts = load_facts(facts_path)
+@@ -472,26 +603,54 @@ def run_qa(path: Path, facts_path: Path | None = None, briefs_path: Path | None
+             if left < -0.05 or top < -0.05 or right > SLIDE_W_CM + 0.05 or bottom > SLIDE_H_CM + 0.05:
+                 findings.append(Finding("error", index, "bounds", "Shape out of bounds"))
+ 
++        findings.extend(run_text_overflow_scan(slide, index))
++        findings.extend(run_text_overlap_scan(slide, index))
++
+     findings.extend(run_fact_consistency(prs, facts))
+     findings.extend(run_data_density(prs, facts, briefs_meta, briefs))
+     return findings
+ 
+ 
+ def main(argv: list[str] | None = None) -> int:
+-    parser = argparse.ArgumentParser()
++    parser = argparse.ArgumentParser(description="Run automated consulting-deck PPTX QA")
+     parser.add_argument("pptx", type=Path)
+     parser.add_argument("--json", action="store_true")
+     parser.add_argument("--facts", type=Path, default=None, help="Optional evidence.json fact table")
+     parser.add_argument("--briefs", type=Path, default=None, help="Optional briefs.yaml for page roles and density thresholds")
+     args = parser.parse_args(argv)
+     findings = run_qa(args.pptx, args.facts, args.briefs)
++
++    modules = [
++        "fonts", "action-title", "source-line", "qualitative-claims",
++        "terminology", "bounds", "text-overflow", "text-overlap",
++    ]
++    if args.facts is not None:
++        modules.append("fact-consistency")
++    if args.briefs is not None:
++        modules.append("data-density")
++    fact_count = len(load_facts(args.facts)) if args.facts is not None else 0
++    brief_count = len(load_briefs(args.briefs)[1]) if args.briefs is not None else 0
++    errors = sum(item.severity == "error" for item in findings)
++    warnings = sum(item.severity == "warning" for item in findings)
++    status = (
++        f"QA passed: 0 findings; modules={','.join(modules)}; "
++        f"facts={fact_count if args.facts is not None else 'not-supplied'}; "
++        f"briefs={brief_count if args.briefs is not None else 'not-supplied'}"
++        if not findings else
++        f"QA completed: errors={errors}, warnings={warnings}; modules={','.join(modules)}; "
++        f"facts={fact_count if args.facts is not None else 'not-supplied'}; "
++        f"briefs={brief_count if args.briefs is not None else 'not-supplied'}"
++    )
++
+     if args.json:
+         print(json.dumps([asdict(item) for item in findings], ensure_ascii=False, indent=2))
++        print(status, file=sys.stderr)
+     else:
+         for finding in findings:
+             where = f"slide {finding.slide}" if finding.slide is not None else "deck"
+             print(f"[{finding.severity}] {where} {finding.check}: {finding.message}")
+-    return 1 if any(item.severity == "error" for item in findings) else 0
++        print(status)
++    return 1 if errors else 0
+ 
+ 
+ if __name__ == "__main__":
+diff --git a/tests/test_cli.py b/tests/test_cli.py
+new file mode 100644
+index 0000000..33cf234
+--- /dev/null
++++ b/tests/test_cli.py
+@@ -0,0 +1,31 @@
++from pathlib import Path
++import sys
++
++ROOT = Path(__file__).resolve().parents[1]
++if str(ROOT) not in sys.path:
++    sys.path.insert(0, str(ROOT))
++
++from scripts.create_template import main as template_main
++from scripts.demo_generate_deck import main as demo_main
++
++
++def test_create_template_cli_honors_output(tmp_path):
++    output = tmp_path / "custom_template.pptx"
++    assert template_main(["--output", str(output)]) == 0
++    assert output.exists() and output.stat().st_size > 0
++
++
++def test_demo_cli_honors_all_output_paths(tmp_path):
++    output = tmp_path / "custom_demo.pptx"
++    evidence = tmp_path / "custom_evidence.json"
++    briefs = tmp_path / "custom_briefs.yaml"
++    assert demo_main(
++        [
++            "--output", str(output),
++            "--evidence-output", str(evidence),
++            "--briefs-output", str(briefs),
++        ]
++    ) == 0
++    assert output.exists() and output.stat().st_size > 0
++    assert evidence.exists() and evidence.stat().st_size > 0
++    assert briefs.exists() and briefs.stat().st_size > 0
+diff --git a/tests/test_qa_negative_paths.py b/tests/test_qa_negative_paths.py
+new file mode 100644
+index 0000000..28d15e5
+--- /dev/null
++++ b/tests/test_qa_negative_paths.py
+@@ -0,0 +1,144 @@
++from pathlib import Path
++import json
++import sys
++
++import pytest
++import yaml
++from pptx import Presentation
++from pptx.util import Cm
++
