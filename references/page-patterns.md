@@ -207,6 +207,25 @@ Use layers such as experience, orchestration, knowledge/data, model/platform and
 
 Avoid mixing business process and infrastructure on the same visual plane unless the relationship is the analytical point.
 
+## Categorical jurisdiction map
+
+Use only when geography is part of the analytical conclusion and the page assigns a small number of representative jurisdictions to one clearly named classification dimension.
+
+Requirements:
+
+- use one consistent and normally mutually exclusive classification dimension;
+- keep the core page to no more than 12 markers and 6 categories;
+- give every jurisdiction a non-empty note and one or more registered evidence IDs;
+- show the as-of date, the number of jurisdictions reviewed and the number displayed;
+- state the selection basis, caveat and decision implication;
+- define members for any regulatory bloc or custom group;
+- retain the complete jurisdiction-by-rule table in a linked appendix;
+- generate and validate the sidecar exhibit manifest with `scripts/qa_exhibits.py`.
+
+Do not use a map to compare numeric magnitudes; use a benchmark bar, small multiples or a table. Do not force overlapping regulatory dimensions into a single colour. If categories can coexist, use a jurisdiction-by-dimension heatmap or multi-tag matrix instead.
+
+Use `scripts/jurisdiction_map.py` with the default `svg_base_native_overlay` mode. The SVG landmass remains vector-sharp while markers, labels, leader lines and the insight rail remain editable PowerPoint shapes. See `references/jurisdiction-map.md`.
+
 ## Source and methodology appendix
 
 Use a structured table with fact ID, metric, definition, period, value, source, retrieval date, calculation basis and pages used. For derived calculations, show formulas and input fact IDs. This page should make the core analysis auditable.

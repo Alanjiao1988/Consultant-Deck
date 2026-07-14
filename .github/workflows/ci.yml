@@ -22,6 +22,11 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
+      - name: Install render QA tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libreoffice-impress poppler-utils fonts-liberation fonts-noto-cjk
+
       - name: Generate template
         run: python scripts/create_template.py
 
@@ -92,6 +97,27 @@ jobs:
                   print(finding)
               raise SystemExit(1)
           PY
+
+      - name: Generate jurisdiction map demo and manifest
+        run: python scripts/demo_generate_jurisdiction_map.py
+
+      - name: Run semantic exhibit QA
+        run: |
+          python scripts/qa_exhibits.py examples/demo_regulatory_map.exhibits.json \
+            --facts examples/demo_regulatory_map.evidence.json \
+            --fail-on-warning \
+            --json
+
+      - name: Run map render QA
+        run: python scripts/qa_map_render.py examples/demo_regulatory_map.pptx --json
+
+      - name: Upload rendered map preview
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: jurisdiction-map-render-preview
+          path: examples/demo_regulatory_map.rendered.png
+          if-no-files-found: error
 
       - name: Run tests
         run: pytest tests/ -q

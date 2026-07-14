@@ -11,6 +11,12 @@
     "line": "#D9D9D9",
     "fill": "#F2F2F2"
   },
+  "map": {
+    "background": "#FFFFFF",
+    "land": "#E8EBF1",
+    "border": "#D9D9D9",
+    "category_palette": ["#1F77B4", "#6A3D9A", "#FF7F0E", "#0F8B8D", "#2E8B57", "#B23A48"]
+  },
   "geometry_cm": {
     "left_margin": 1.2,
     "right_margin": 1.2,

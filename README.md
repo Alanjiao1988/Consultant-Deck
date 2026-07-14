@@ -1,6 +1,6 @@
 # Consultant Deck Skill
 
-A research-heavy consulting-style PowerPoint skill for generating executive-ready decks with storyline discipline, data-rich page briefs, mandatory evidence research, support and counter-evidence checks, analytical content-density gates, appendix depth, private project-state persistence, fact-table QA, subagent orchestration rules, revision loop, Chinese-English typography rules, and reusable PowerPoint-native data exhibits.
+A research-heavy consulting-style PowerPoint skill for generating executive-ready decks with storyline discipline, data-rich page briefs, mandatory evidence research, support and counter-evidence checks, analytical content-density gates, appendix depth, private project-state persistence, fact-table QA, subagent orchestration rules, revision loop, Chinese-English typography rules, reusable PowerPoint-native data exhibits, and deterministic vector jurisdiction maps.
 
 ## What this version fixes
 
@@ -23,6 +23,7 @@ Key changes:
 11. Added executable brief QA and table/chart-aware PPTX QA.
 12. Replaced the concept-heavy demo with a data-rich example containing dense tables, a combo chart and CAGR, peer benchmark, quantified driver tree, sensitivity and quantified roadmap.
 13. Added editable data-exhibit helpers: `dense_table`, `driver_tree`, `benchmark_bar`, `bar_h`, `area_stacked`, `combo_chart`, `cagr_annotation` and `chart_with_data_table`.
+14. Added `categorical_jurisdiction_map()` with an Equal Earth SVG base, deterministic jurisdiction anchors, editable PowerPoint overlays, semantic exhibit manifests and render-level QA.
 
 The repository also retains the consulting delivery workflow: storyline → exhibit plan → evidence research → page production → consulting QA → rendering QA, with private project-state security, fact consistency checks, subagent orchestration and revision-mode support.
 
@@ -44,6 +45,15 @@ python scripts/qa_pptx.py examples/demo_ai_transformation.pptx \
   --facts examples/demo_ai_transformation.evidence.json \
   --briefs examples/demo_ai_transformation.briefs.yaml \
   --json
+
+python scripts/demo_generate_jurisdiction_map.py
+python scripts/qa_exhibits.py examples/demo_regulatory_map.exhibits.json \
+  --facts examples/demo_regulatory_map.evidence.json \
+  --fail-on-warning \
+  --json
+
+# Requires LibreOffice and pdftoppm/poppler for render QA.
+python scripts/qa_map_render.py examples/demo_regulatory_map.pptx --json
 
 pytest tests/ -q
 ```
@@ -97,6 +107,8 @@ The main PowerPoint-native helpers in `scripts/consulting_shapes.py` include:
 - `chart_with_data_table()` for visual trend plus exact values;
 - existing waterfall, 2x2, option-evaluation, risk and RACI helpers.
 
+`scripts/jurisdiction_map.py` adds `categorical_jurisdiction_map()` for qualitative geography pages. It embeds a vector SVG landmass and keeps the business overlay editable. The helper is intentionally limited to a single classification dimension, no more than 6 categories and no more than 12 representative markers. Numeric geography comparisons should still use benchmark bars, small multiples or tables. See `references/jurisdiction-map.md`.
+
 ## Private state layer
 
 Real project process artifacts must be stored outside this public skill repo. Preferred target:
@@ -105,11 +117,11 @@ Real project process artifacts must be stored outside this public skill repo. Pr
 <private-state-root>/deck-drafts/<YYYY-MM-DD>/<deck-title-slug>/
 ```
 
-The private draft directory should contain `storyline.md`, `briefs.yaml`, `evidence.json`, `research-log.md`, `assumptions.md`, `pages/`, `output/`, `baseline/`, and `changelog.md`. See `references/project-state.md`.
+The private draft directory should contain `storyline.md`, `briefs.yaml`, `evidence.json`, `research-log.md`, `assumptions.md`, `pages/`, `output/`, `baseline/`, and `changelog.md`. Data-driven exhibits may additionally write `output/deck.exhibits.json`. See `references/project-state.md`.
 
 If `baseline/` exists for a project, follow `references/revision-loop.md` instead of regenerating the full deck.
 
-Security rule: customer names, internal numbers, project code names, non-public architecture details, source documents, draft storylines, `briefs.yaml`, `evidence.json` and assumptions must never be written to public storage.
+Security rule: customer names, internal numbers, project code names, non-public architecture details, source documents, draft storylines, `briefs.yaml`, `evidence.json`, exhibit manifests and assumptions must never be written to public storage.
 
 ## Parallel execution rules
 
@@ -138,6 +150,7 @@ references/
   content-density.md
   deck-archetypes.md
   exhibit-planning.md
+  jurisdiction-map.md
   project-state.md
   revision-loop.md
   orchestration.md
@@ -147,31 +160,45 @@ references/
   terminology.md
 assets/
   theme.json
+  maps/
+    world_equal_earth.svg
+    jurisdiction_anchors.json
+    LICENSE.md
 scripts/
   consulting_layouts.py
   consulting_shapes.py
+  jurisdiction_map.py
   business_case.py
   architecture_helpers.py
   create_template.py
   demo_generate_deck.py
+  demo_generate_jurisdiction_map.py
   qa_briefs.py
+  qa_exhibits.py
+  qa_map_render.py
   qa_pptx.py
 tests/
   test_shapes.py
   test_qa_briefs.py
   test_data_exhibits.py
+  test_jurisdiction_map.py
+  test_qa_exhibits.py
 ```
 
 ## CI validation
 
 The pull-request workflow:
 
-1. installs dependencies;
+1. installs Python dependencies and LibreOffice/poppler render tools;
 2. generates the template;
 3. generates the data-rich demo PPTX, evidence table and briefs;
 4. requires zero page-brief QA warnings/errors;
 5. requires zero PPTX QA findings using both facts and briefs;
-6. runs the full pytest suite.
+6. generates the jurisdiction-map demo and semantic manifest;
+7. requires zero semantic exhibit QA findings;
+8. renders the map demo and applies structural visual smoke QA;
+9. uploads the rendered map preview as a CI artifact;
+10. runs the full pytest suite.
 
 ## Behavioral validation
 
@@ -180,10 +207,12 @@ The pull-request workflow:
 3. Research-heavy analytical pages with fewer than 3 visible registered numeric facts produce a density warning.
 4. Generic concept pages without quantified baselines, targets, trade-offs or implementation details fail content-depth QA.
 5. Unsupported strong qualitative claims produce a warning.
-6. The demo must return zero brief and PPTX QA findings.
-7. If a demo slide number is manually changed to conflict with `evidence.json`, fact QA reports a consistency error.
-8. A mixed-language cover such as `某银行数字化转型 strategy` produces a terminology warning.
-9. If a user asks to modify a page after a frozen baseline exists, the agent enters revision mode and reruns scoped QA.
-10. Publicly accessible paths contain no real project-state files.
+6. The main demo must return zero brief and PPTX QA findings.
+7. The map demo must embed an SVG base, expose native marker/label metadata and return zero semantic/render QA findings.
+8. Unknown categories, unused legend entries, missing evidence, unregistered anchors and unjustified custom anchors fail map QA.
+9. If a demo slide number is manually changed to conflict with `evidence.json`, fact QA reports a consistency error.
+10. A mixed-language cover such as `某银行数字化转型 strategy` produces a terminology warning.
+11. If a user asks to modify a page after a frozen baseline exists, the agent enters revision mode and reruns scoped QA.
+12. Publicly accessible paths contain no real project-state files.
 
-Generated binary PPTX files are intentionally not stored in the repository by default. Run `scripts/create_template.py` and `scripts/demo_generate_deck.py` to create demo outputs locally. Store real delivery references only in the selected private state root.
+Generated binary PPTX files are intentionally not stored in the repository by default. Run `scripts/create_template.py`, `scripts/demo_generate_deck.py` and `scripts/demo_generate_jurisdiction_map.py` to create demo outputs locally. Store real delivery references only in the selected private state root.
