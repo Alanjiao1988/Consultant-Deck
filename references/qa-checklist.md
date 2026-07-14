@@ -28,6 +28,8 @@ Use this checklist together with `references/content-density.md`. A visually cor
 - Conceptual frameworks and architecture diagrams include quantified baselines or targets, design decisions, trade-offs and dependencies.
 - Roadmaps include owners, deliverables, decision gates, measurable exit criteria, critical dependencies and quantified wave scope.
 - Strong qualitative statements such as `显著提升` or `rapidly growing` include a number, range, threshold or visible evidence basis.
+- A categorical jurisdiction map names one classification dimension, shows reviewed/displayed coverage and as-of date, uses no more than 12 markers and 6 categories, and links to an appendix table.
+- A map is not used as a decorative substitute for a benchmark bar, small multiple, heatmap or detailed jurisdiction matrix.
 
 ## Quantification test
 
@@ -90,6 +92,7 @@ These are quality floors, not reasons to split facts artificially. If the topic 
 - Derived metrics can be traced to registered source facts.
 - Evidence IDs used on slides exist in `evidence.json` and are assigned to the correct pages.
 - Data-density requirements never justify fabrication or unsupported extrapolation.
+- Every jurisdiction classification has its own evidence coverage; a source for one group member is not silently generalized to the whole group.
 
 ## Executive summary QA
 
@@ -108,18 +111,21 @@ These are quality floors, not reasons to split facts artificially. If the topic 
 - Counter-evidence and rejected alternatives are not silently discarded.
 - Appendix content is readable at approved font sizes.
 - The appendix does not contain unexplained raw-data dumps.
+- Map appendix tables retain jurisdiction, entity type, members, category, note, evidence IDs, as-of date, source and caveat.
 
 ## Visual QA
 
 - Fonts include both Arial and Microsoft YaHei in XML.
 - Layout stays within margins; automated QA uses conservative text-overflow and independent-textbox-overlap heuristics.
 - Exact alignment, page-number continuity and complex intentional layering still require rendered-image or manual review.
-- Palette uses primary, accent and gray scale only.
+- Palette uses approved theme tokens; categorical maps may use the bounded `map.category_palette` in `assets/theme.json`.
 - Charts are PowerPoint-native when possible.
+- Categorical maps use a vector SVG base plus native PowerPoint markers, labels, leader lines and insight rail; low-polygon continent shapes are not the default.
 - Source line and page number are present where required.
 - No font is reduced below the approved minimum to force excess content onto a page.
 - Dense analysis uses tables, chart-plus-table combinations, benchmark bars, driver trees, small multiples, annotated charts, bridges and insight rails rather than paragraphs.
 - If a page is unreadable, split it into two pages instead of shrinking text.
+- Rendered map review confirms recognizable geography, readable labels, no material collisions, neutral political treatment and a visible caveat.
 
 ## Automated QA
 
@@ -133,6 +139,17 @@ python scripts/qa_briefs.py <private-draft-dir>/briefs.yaml \
 
 Resolve all errors before freezing the baseline. Review warnings explicitly; research-heavy evidence-budget and appendix-depth warnings should normally be fixed rather than ignored.
 
+For data-driven exhibits such as categorical jurisdiction maps, also run semantic manifest QA:
+
+```bash
+python scripts/qa_exhibits.py <output>/deck.exhibits.json \
+  --facts <private-draft-dir>/evidence.json \
+  --fail-on-warning \
+  --json
+```
+
+This validates classification dimensions, legend/category consistency, jurisdiction notes, anchor registration, group membership, coverage, caveats, dates and evidence references. The manifest is the source of truth because a PPTX scanner cannot reliably infer business meaning from marker colours.
+
 After PPTX generation, run:
 
 ```bash
@@ -141,4 +158,10 @@ python scripts/qa_pptx.py path/to/deck.pptx \
   --briefs path/to/briefs.yaml
 ```
 
-`qa_pptx.py` checks registered-number density, unsupported strong qualitative claims, fact consistency, source-line signals, terminology, fonts and bounds. Warnings should be reviewed manually; errors should be fixed before delivery. Automated QA does not replace source validation, calculation review or executive skim testing.
+For map pages, run the render smoke check and inspect the generated PNG:
+
+```bash
+python scripts/qa_map_render.py path/to/deck.pptx --json
+```
+
+`qa_pptx.py` checks registered-number density, unsupported strong qualitative claims, fact consistency, source-line signals, terminology, fonts and bounds. `qa_exhibits.py` checks semantic exhibit contracts. `qa_map_render.py` catches blank SVG output, gross clipping and structural render failures. Warnings should be reviewed manually; errors should be fixed before delivery. Automated QA does not replace source validation, calculation review, geopolitical review or executive skim testing.
