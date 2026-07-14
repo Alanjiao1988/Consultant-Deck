@@ -1,0 +1,137 @@
+from __future__ import annotations
+
+import json
+from pathlib import Path
+import zipfile
+
+from pptx import Presentation
+from pptx.util import Cm
+import pytest
+
+ROOT = Path(__file__).resolve().parents[1]
+
+from scripts.demo_generate_jurisdiction_map import generate
+from scripts.jurisdiction_map import categorical_jurisdiction_map
+
+
+def _blank_slide():
+    prs = Presentation()
+    prs.slide_width = Cm(33.87)
+    prs.slide_height = Cm(19.05)
+    return prs, prs.slides.add_slide(prs.slide_layouts[6])
+
+
+def _categories():
+    return [
+        {"id": "a", "label": "Pattern A", "description": "First pattern"},
+        {"id": "b", "label": "Pattern B", "description": "Second pattern"},
+    ]
+
+
+def _jurisdictions():
+    return [
+        {"id": "US", "label": "United States", "category_id": "a", "note": "Federal and state overlay", "evidence_ids": ["F1"]},
+        {"id": "EU", "label": "European Union", "category_id": "b", "note": "Bloc rulebook", "evidence_ids": ["F2"], "entity_type": "regulatory_bloc", "members": ["EU members"]},
+    ]
+
+
+def test_demo_embeds_svg_and_native_overlays(tmp_path):
+    pptx_path, manifest_path = generate(tmp_path / "map.pptx", tmp_path / "map.exhibits.json")
+    with zipfile.ZipFile(pptx_path) as archive:
+        media = [name for name in archive.namelist() if name.endswith(".svg")]
+        assert media == ["ppt/media/image1.svg"]
+        content_types = archive.read("[Content_Types].xml").decode("utf-8")
+        assert "image/svg+xml" in content_types
+        assert len(archive.read(media[0])) > 6_000
+
+    prs = Presentation(pptx_path)
+    names = [shape.name for shape in prs.slides[0].shapes]
+    assert sum(name.startswith("MAP_MARKER|") for name in names) == 6
+    assert sum(name.startswith("MAP_LABEL|") for name in names) == 6
+    assert sum(name.startswith("MAP_LEGEND|") for name in names) == 4
+
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))["exhibits"][0]
+    assert manifest["classification_dimension"]
+    assert manifest["coverage"] == {
+        "reviewed": 24,
+        "shown": 6,
+        "selection_basis": "Representative operating patterns",
+    }
+
+
+def test_demo_label_boxes_do_not_materially_overlap(tmp_path):
+    pptx_path, _ = generate(tmp_path / "map.pptx", tmp_path / "map.exhibits.json")
+    prs = Presentation(pptx_path)
+    labels = [shape for shape in prs.slides[0].shapes if shape.name.startswith("MAP_LABEL|")]
+    for index, first in enumerate(labels):
+        for second in labels[index + 1:]:
+            overlap_w = min(first.left + first.width, second.left + second.width) - max(first.left, second.left)
+            overlap_h = min(first.top + first.height, second.top + second.height) - max(first.top, second.top)
+            if overlap_w <= 0 or overlap_h <= 0:
+                continue
+            overlap = overlap_w * overlap_h
+            smaller = min(first.width * first.height, second.width * second.height)
+            assert overlap / smaller < 0.20
+
+
+def test_unknown_category_is_rejected():
+    _, slide = _blank_slide()
+    jurisdictions = _jurisdictions()
+    jurisdictions[0]["category_id"] = "missing"
+    with pytest.raises(ValueError, match="unknown category"):
+        categorical_jurisdiction_map(
+            slide, jurisdictions, _categories(), 1, 3, 30, 13,
+            classification_dimension="Test dimension",
+            as_of="2026-07-14",
+            caveat="Test caveat",
+        )
+
+
+def test_unused_legend_category_is_rejected():
+    _, slide = _blank_slide()
+    jurisdictions = [_jurisdictions()[0]]
+    with pytest.raises(ValueError, match="legend categories are not referenced"):
+        categorical_jurisdiction_map(
+            slide, jurisdictions, _categories(), 1, 3, 30, 13,
+            classification_dimension="Test dimension",
+            as_of="2026-07-14",
+            caveat="Test caveat",
+        )
+
+
+def test_custom_anchor_requires_explicit_rationale():
+    _, slide = _blank_slide()
+    jurisdictions = [
+        {
+            "id": "NEW",
+            "label": "New market",
+            "category_id": "a",
+            "note": "New classification",
+            "evidence_ids": ["F1"],
+            "anchor": {"x": 0.5, "y": 0.5},
+        },
+        {
+            "id": "EU",
+            "label": "European Union",
+            "category_id": "b",
+            "note": "Bloc rulebook",
+            "evidence_ids": ["F2"],
+            "entity_type": "regulatory_bloc",
+            "members": ["EU members"],
+        },
+    ]
+    with pytest.raises(ValueError, match="custom_anchor_rationale"):
+        categorical_jurisdiction_map(
+            slide, jurisdictions, _categories(), 1, 3, 30, 13,
+            classification_dimension="Test dimension",
+            as_of="2026-07-14",
+            caveat="Test caveat",
+            allow_custom_anchor=True,
+        )
+
+
+def test_world_asset_is_real_vector_map():
+    svg = (ROOT / "assets" / "maps" / "world_equal_earth.svg").read_text(encoding="utf-8")
+    assert 'viewBox="0 0 1000 520"' in svg
+    assert svg.count("<path") >= 30
+    assert len(svg) > 6_000
