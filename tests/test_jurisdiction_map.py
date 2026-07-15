@@ -11,7 +11,7 @@ import pytest
 ROOT = Path(__file__).resolve().parents[1]
 
 from scripts.demo_generate_jurisdiction_map import generate
-from scripts.jurisdiction_map import categorical_jurisdiction_map
+from scripts.jurisdiction_map import SVG_EXTENSION_URI, categorical_jurisdiction_map
 
 
 def _blank_slide():
@@ -35,14 +35,27 @@ def _jurisdictions():
     ]
 
 
-def test_demo_embeds_svg_and_native_overlays(tmp_path):
+def test_demo_embeds_png_fallback_svg_extension_and_native_overlays(tmp_path):
     pptx_path, manifest_path = generate(tmp_path / "map.pptx", tmp_path / "map.exhibits.json")
     with zipfile.ZipFile(pptx_path) as archive:
-        media = [name for name in archive.namelist() if name.endswith(".svg")]
-        assert media == ["ppt/media/image1.svg"]
+        png_media = [name for name in archive.namelist() if name.endswith(".png")]
+        svg_media = [name for name in archive.namelist() if name.endswith(".svg")]
+        assert len(png_media) == 1
+        assert len(svg_media) == 1
+        assert len(archive.read(png_media[0])) > 10_000
+        assert len(archive.read(svg_media[0])) > 6_000
+
         content_types = archive.read("[Content_Types].xml").decode("utf-8")
+        assert "image/png" in content_types
         assert "image/svg+xml" in content_types
-        assert len(archive.read(media[0])) > 6_000
+
+        slide_xml = archive.read("ppt/slides/slide1.xml").decode("utf-8")
+        rels_xml = archive.read("ppt/slides/_rels/slide1.xml.rels").decode("utf-8")
+        assert SVG_EXTENSION_URI in slide_xml
+        assert "svgBlip" in slide_xml
+        assert "drawing/2016/SVG/main" in slide_xml
+        assert ".png" in rels_xml
+        assert ".svg" in rels_xml
 
     prs = Presentation(pptx_path)
     names = [shape.name for shape in prs.slides[0].shapes]
@@ -57,6 +70,8 @@ def test_demo_embeds_svg_and_native_overlays(tmp_path):
         "shown": 6,
         "selection_basis": "Representative operating patterns",
     }
+    assert manifest["base_image"]["primary"] == "png_fallback"
+    assert manifest["base_image"]["vector_extension"] == "office_svg_blip"
 
 
 def test_demo_label_boxes_do_not_materially_overlap(tmp_path):
@@ -130,8 +145,11 @@ def test_custom_anchor_requires_explicit_rationale():
         )
 
 
-def test_world_asset_is_real_vector_map():
+def test_world_assets_include_vector_and_raster_fallback():
     svg = (ROOT / "assets" / "maps" / "world_equal_earth.svg").read_text(encoding="utf-8")
+    png = ROOT / "assets" / "maps" / "world_equal_earth.png"
     assert 'viewBox="0 0 1000 520"' in svg
     assert svg.count("<path") >= 30
     assert len(svg) > 6_000
+    assert png.is_file()
+    assert png.stat().st_size > 10_000
