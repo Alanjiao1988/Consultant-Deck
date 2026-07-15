@@ -1,9 +1,11 @@
 from __future__ import annotations
 
+from io import BytesIO
 import json
 from pathlib import Path
 import zipfile
 
+from PIL import Image
 from pptx import Presentation
 from pptx.util import Cm
 import pytest
@@ -42,7 +44,11 @@ def test_demo_embeds_png_fallback_svg_extension_and_native_overlays(tmp_path):
         svg_media = [name for name in archive.namelist() if name.endswith(".svg")]
         assert len(png_media) == 1
         assert len(svg_media) == 1
-        assert len(archive.read(png_media[0])) > 10_000
+
+        png_bytes = archive.read(png_media[0])
+        assert png_bytes.startswith(b"\x89PNG\r\n\x1a\n")
+        with Image.open(BytesIO(png_bytes)) as image:
+            assert image.size == (1000, 520)
         assert len(archive.read(svg_media[0])) > 6_000
 
         content_types = archive.read("[Content_Types].xml").decode("utf-8")
@@ -151,5 +157,6 @@ def test_world_assets_include_vector_and_raster_fallback():
     assert 'viewBox="0 0 1000 520"' in svg
     assert svg.count("<path") >= 30
     assert len(svg) > 6_000
-    assert png.is_file()
-    assert png.stat().st_size > 10_000
+    assert png.read_bytes().startswith(b"\x89PNG\r\n\x1a\n")
+    with Image.open(png) as image:
+        assert image.size == (1000, 520)
