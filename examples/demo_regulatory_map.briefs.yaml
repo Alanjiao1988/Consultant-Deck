@@ -1,0 +1,42 @@
+content_density_target: research-heavy
+pages:
+  - page: 1
+    page_role: core_argument
+    key_question: How do dominant regulatory operating models differ across representative jurisdictions?
+    action_title: Regulatory requirements are localized by jurisdiction and workload rather than governed by one global default
+    title_quantification:
+      status: justified_non_numeric
+      rationale: The page makes a categorical operating-model conclusion; coverage counts are shown in the exhibit and the full universe is in Appendix A6.
+    content_density_target: qualitative-exhibit
+    min_registered_numbers: 0
+    exhibit_manifest: examples/demo_regulatory_map.exhibits.json
+    evidence_ids: [F101, F102, F103, F104, F105, F106]
+    required_data_points:
+      - classification dimension and category definitions
+      - coverage reviewed and shown with selection basis
+      - current as-of date and jurisdiction-level evidence
+    quantification:
+      metric: coverage
+      values: 24 markets reviewed; 6 representative markets shown
+    comparison_basis:
+      type: geography_classification
+      universe: 24 reviewed markets
+    benchmark:
+      type: reviewed_universe
+      value: 24 markets
+      source: Illustrative evidence register
+    analysis_method: categorical_jurisdiction_mapping
+    primary_exhibit: categorical_jurisdiction_map
+    insight_annotations:
+      - Localization decisions are workload-specific rather than universal country defaults
+      - Grouping supports triage but does not replace market-specific legal review
+    decision_implication: Prioritize detailed assessments for regulated workloads and high-risk transfers.
+    data_source: Illustrative evidence register
+    caveat: Demonstration classifications are assumptions and are not legal advice.
+    as_of: 2026-07-14
+    coverage:
+      reviewed: 24
+      shown: 6
+      selection_basis: Representative operating patterns
+    appendix_link: A6
+    unresolved_gaps: []

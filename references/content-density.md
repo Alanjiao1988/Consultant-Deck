@@ -11,14 +11,15 @@ Unless the user explicitly requests a short executive brief, use **research-heav
 | Executive brief | 6–10 | 3–8 | 2–4 evidence items per core page |
 | Standard consulting | 10–18 | 4–10 | 3–5 evidence items per analytical page |
 | Research-heavy consulting — default | 12–25 | 6–20 | 4–8 evidence items per analytical page, plus benchmark or comparison |
+| Qualitative exhibit | Used only for evidence-backed classification exhibits | Required detailed backup | Coverage, as-of date, classification evidence, sidecar manifest and appendix universe |
 
-The page count is not a target by itself. Add pages when the available evidence requires separate analysis, and remove pages that do not contribute to the decision.
+The page count is not a target by itself. Add pages when evidence requires separate analysis, and remove pages that do not contribute to the decision.
 
 ## Hard data-density gates
 
 Data density means **verified and registered quantitative evidence**, not decorative numbers or fabricated precision.
 
-For the body of each non-exempt page:
+For the body of each ordinary non-exempt page:
 
 | Density mode | Minimum visible registered numeric facts | Normal target |
 |---|---:|---:|
@@ -32,9 +33,44 @@ Rules:
 2. The action title does not by itself satisfy the body-density gate. The body exhibit must carry the proof.
 3. Covers, section dividers, navigation pages and explicitly requested conceptual-framework pages are exempt.
 4. Explicit conceptual-framework pages should normally be no more than 25% of eligible pages. A project may set a limit between 20% and 30%, but must record the reason.
-5. If a page cannot meet the floor, return it to Evidence Research, weaken or delete the claim, or mark it as an explicitly requested framework page with a documented rationale.
+5. If an ordinary analytical page cannot meet the floor, return it to Evidence Research, weaken or delete the claim, or split the page.
 6. Do not create multiple evidence IDs for one fact merely to pass the gate.
-7. Never fabricate or extrapolate unsupported numbers to increase density. Density pressure always strengthens Step 4 research; it never relaxes Evidence Discipline.
+7. Never fabricate or extrapolate unsupported numbers to increase density. Density pressure strengthens research; it never relaxes Evidence Discipline.
+
+### Qualitative-exhibit alternative contract
+
+Some pages prove a decision through a structured, evidence-backed qualitative classification rather than numeric magnitude. The canonical example is `categorical_jurisdiction_map`. These pages are not conceptual-framework exemptions and must not silently inherit the research-heavy three-number floor.
+
+A qualifying page brief must explicitly contain:
+
+```yaml
+content_density_target: qualitative-exhibit
+min_registered_numbers: 0
+exhibit_manifest: output/<deck-name>.exhibits.json
+appendix_link: A6
+as_of: 2026-07-14
+coverage:
+  reviewed: 24
+  shown: 6
+  selection_basis: Representative operating patterns
+```
+
+The explicit `min_registered_numbers: 0` uses the existing page-specific override in `qa_pptx.py`. It is mandatory; merely naming the density mode is not enough. This keeps the final-file QA deterministic and avoids special-casing one visual type inside the generic numeric scanner.
+
+The zero threshold is permitted only when all of the following are true:
+
+1. The primary exhibit is a structured qualitative classification with a named and consistent dimension.
+2. Every classified entity is backed by one or more registered qualitative evidence IDs.
+3. The page displays and registers `coverage.reviewed` and `coverage.shown` where those counts are available.
+4. The page states an ISO as-of date and a non-empty selection basis.
+5. The page includes two to four evidence-based observations, a decision implication and a visible caveat.
+6. A semantic exhibit manifest is written and passes `qa_exhibits.py`.
+7. A linked appendix table lists the full reviewed universe, definitions, category assignment, sources, retrieval dates and limitations.
+8. The conclusion is about pattern, operating model or classification—not numeric magnitude.
+
+This is a **substitute evidence contract**, not an evidence waiver. Dates, jurisdiction IDs, duplicated coverage counts or arbitrary scores must not be introduced merely to reach three numbers. If the conclusion is fundamentally quantitative, use a benchmark bar, table, small multiple or other numeric exhibit instead.
+
+The deck-level evidence budget still applies. Qualitative-exhibit pages contribute registered qualitative facts and sources, but they do not reduce the evidence expected on unrelated research-heavy pages.
 
 ### Numeric and qualitative evidence records
 
@@ -46,6 +82,14 @@ Run final density checks with:
 python scripts/qa_pptx.py <deck.pptx> \
   --facts <private-draft-dir>/evidence.json \
   --briefs <private-draft-dir>/briefs.yaml
+```
+
+For data-driven qualitative exhibits, run semantic QA first:
+
+```bash
+python scripts/qa_exhibits.py <private-draft-dir>/output/<deck-name>.exhibits.json \
+  --facts <private-draft-dir>/evidence.json \
+  --fail-on-warning
 ```
 
 ### Qualitative-claim rule
@@ -69,27 +113,27 @@ A non-numeric title is allowed only when:
 1. the title describes a genuinely qualitative decision or design principle; or
 2. three reasonable searches found no defensible number;
 3. the failed search and rationale are recorded; and
-4. the body still meets its evidence and comparison requirements.
+4. the body still meets its ordinary or qualitative-exhibit evidence contract.
 
 Do not force a misleading number into a title merely to satisfy this preference.
 
 ## Core principle: no decorative concept pages
 
-A page is not complete merely because it has an action title and a diagram. Concept-only pages are allowed only when the user explicitly asks for a conceptual framework or when the page is a navigation/section divider.
+A page is not complete merely because it has an action title and a diagram. Concept-only pages are allowed only when the user explicitly asks for a conceptual framework or when the page is navigation/section divider.
 
 Every core page must contain:
 
 1. One conclusion expressed as an action title.
 2. One primary analytical exhibit that proves the conclusion.
 3. At least 2 evidence IDs; analytical pages should normally contain 4–8.
-4. At least one comparison, trend, benchmark, segmentation, decomposition or scenario.
+4. At least one comparison, trend, benchmark, segmentation, decomposition, scenario or defined qualitative classification universe.
 5. Two to four insight annotations that explain why the exhibit matters.
 6. A decision implication, recommendation or next action.
 7. A caveat, assumption or boundary condition where material.
 8. A source line with source names, dates and calculation basis.
-9. A defined `quantification` statement and a concrete `benchmark` object or threshold.
+9. A defined `quantification` and benchmark, or an approved qualitative-exhibit contract.
 
-A page with only icons, generic arrows, a five-box framework or unquantified maturity labels fails the content-density standard.
+A page with only icons, generic arrows, a five-box framework or unquantified maturity labels fails the standard.
 
 ## Minimum analytical content by page type
 
@@ -99,26 +143,24 @@ Include, where available:
 
 - historical market size for at least 3 periods;
 - current market size and growth rate;
-- forecast range and forecast horizon;
+- forecast range and horizon;
 - segment, geography or customer breakdown;
 - at least one independent benchmark or alternative estimate;
-- explicit definitions explaining what is included and excluded.
+- explicit definitions explaining included and excluded scope.
 
-Do not present a single CAGR or market-size number without the underlying time period, source definition and comparison.
+Do not present a single CAGR or market-size number without the underlying period, source definition and comparison.
 
 ### Company or financial page
 
 Include, where relevant:
 
-- at least 3–5 years of history or all available reporting periods;
+- at least 3–5 years of history or all available periods;
 - revenue, growth, margin, cash flow and capital intensity rather than revenue alone;
 - segment or product decomposition;
 - peer median or closest comparable companies;
-- management guidance versus actual performance;
-- capital allocation, dividend, buyback and balance-sheet implications;
+- guidance versus actual performance;
+- capital allocation implications;
 - calculation basis for derived metrics.
-
-A company page with only profile facts, logos or management quotes is insufficient.
 
 ### Investment or valuation page
 
@@ -144,75 +186,56 @@ Include:
 - limitations, lock-in, regulatory constraints and operational dependencies;
 - design trade-offs, not only target-state boxes.
 
-Architecture pages should normally show 3–5 design decisions, 2–4 quantified baselines or targets, key interfaces, control points and the implications of the chosen design.
+Architecture pages should normally show 3–5 design decisions, 2–4 quantified baselines or targets, key interfaces, control points and implications.
+
+### Qualitative jurisdiction or regulatory classification page
+
+Include:
+
+- a named classification dimension and whether categories are mutually exclusive;
+- reviewed and shown coverage counts plus selection basis;
+- a current as-of date;
+- evidence-backed notes for every displayed jurisdiction;
+- a complete legend with no unused categories;
+- two to four implications and one decision statement;
+- a visible legal/comparability caveat;
+- a sidecar manifest;
+- an appendix table covering the full reviewed universe.
+
+Do not use this page type when categories overlap materially or when the intended conclusion is a numeric ranking.
 
 ### Option evaluation page
 
-Include:
-
-- options that are genuinely feasible;
-- weighted criteria and rationale for weights;
-- evidence behind each score;
-- sensitivity if the recommendation changes under different weights;
-- implementation consequences and switching costs;
-- explicit reason for rejecting the second-best option.
+Include feasible options, weighted criteria, evidence behind scores, sensitivity, implementation consequences and the reason for rejecting the second-best option.
 
 ### Business case page
 
-Include:
-
-- full assumption table;
-- one-off and recurring costs;
-- benefit categories and realization timing;
-- base, upside and downside scenarios;
-- payback, NPV or IRR where appropriate;
-- sensitivity to the two largest assumptions;
-- ownership for benefit realization;
-- non-financial benefits stated separately from financial benefits.
+Include a full assumption table, one-off and recurring costs, benefit categories and timing, base/upside/downside scenarios, payback/NPV/IRR where appropriate, sensitivity and benefit ownership.
 
 ### Roadmap page
 
-Include:
-
-- workstreams, owners and timing;
-- deliverables and measurable exit criteria;
-- dependencies and decision gates;
-- resource or budget implications;
-- target KPIs by wave;
-- critical path and what can run in parallel;
-- risks that could delay each wave;
-- quantified scope for each wave, such as system count, user count, budget, workload or benefit milestone.
-
-A roadmap with generic phases such as Discover, Design, Build and Run is insufficient unless each phase contains specific outputs and gates.
+Include workstreams, owners, timing, deliverables, measurable exit criteria, dependencies, decision gates, resources, target KPIs, critical path and quantified scope by wave.
 
 ### Risk page
 
-Include:
-
-- probability and impact;
-- evidence or trigger for the rating;
-- leading indicator;
-- mitigation action;
-- accountable owner;
-- residual risk after mitigation;
-- time horizon and escalation threshold.
+Include probability, impact, evidence/trigger, leading indicator, mitigation, owner, residual risk, time horizon and escalation threshold.
 
 ### Executive summary
 
-The executive summary must be a synthesis of the analysis, not a table of contents. It should include 3–5 evidence-backed conclusions, each linked to the supporting pages and evidence IDs. At least one block should state the decision required, one should quantify expected impact, and one should state the primary risk or condition for success.
+Synthesize 3–5 evidence-backed conclusions linked to supporting pages and evidence IDs. At least one block states the decision, one quantifies expected impact, and one states the primary risk or success condition.
 
 ## Deck-level evidence budget
 
 For a 10-page core deck, use the following default floor unless the topic has little available evidence:
 
-- 25–50 registered facts or calculations in `evidence.json`;
+- 25–50 registered facts or calculations, including material qualitative assertions;
 - 8–15 distinct sources;
-- at least 5 primary exhibits containing data, comparison or quantified analysis;
+- at least 5 primary exhibits containing data, comparison or auditable classification;
 - at least 3 appendix pages with supporting tables, methodology, source definitions or sensitivities;
-- at least one primary source for each major conclusion when a primary source exists;
+- at least one primary source for each major conclusion when one exists;
 - at least two independent source families for high-impact market, financial or regulatory conclusions.
 
-Scale these floors proportionally for larger decks. Do not split one fact into multiple IDs merely to meet a count.
+Scale these floors proportionally. Do not split one fact into multiple IDs merely to meet a count.
 
 ## Source depth and hierarchy
 
@@ -222,74 +245,53 @@ Prefer sources in this order:
 2. International organizations, standards bodies and recognized industry associations.
 3. Reputable data providers and research institutions.
 4. Reuters, Financial Times, Bloomberg and other high-quality reporting.
-5. Vendor blogs, specialist publications and secondary summaries, used with clear caveats.
+5. Vendor blogs, specialist publications and secondary summaries, used with caveats.
 
-For each major conclusion, capture both supporting evidence and limiting or contradictory evidence. A large source list is not a substitute for source quality.
+For each major conclusion, capture supporting and limiting or contradictory evidence. A large source list is not a substitute for source quality.
 
 ## Page brief content budget
 
-Every page brief should include these fields in addition to the standard key question and action title:
+Every page brief should include:
 
-- `page_role`: core argument, supporting analysis, recommendation, decision or appendix;
-- `evidence_ids`: IDs already registered in `evidence.json`;
-- `required_data_points`: the specific numbers or facts that must appear;
-- `quantification`: the principal baseline, target, gap, range or metric;
-- `comparison_basis`: peer, period, scenario, segment or analytical comparison type;
-- `benchmark`: the actual comparison entity, value, range or threshold and its source;
-- `analysis_method`: trend, bridge, benchmark, decomposition, scoring, sensitivity, scenario or synthesis;
-- `title_quantification`: quantitative title anchor, research task or justified non-numeric rationale;
-- `insight_annotations`: two to four implications to call out on the exhibit;
-- `decision_implication`: what the audience should decide or do;
-- `appendix_link`: backup page containing methodology or detailed data;
-- `content_density_target`: executive, standard or research-heavy;
-- `unresolved_gaps`: missing evidence that must be researched, assumed or removed.
+- `page_role`;
+- `evidence_ids`;
+- `required_data_points`;
+- `quantification` or approved qualitative coverage contract;
+- `comparison_basis`;
+- `benchmark` or reviewed universe;
+- `analysis_method`;
+- `title_quantification`;
+- `insight_annotations`;
+- `decision_implication`;
+- `appendix_link`;
+- `content_density_target`;
+- `min_registered_numbers` when using a page-specific override;
+- `exhibit_manifest` for data-driven semantic exhibits;
+- `unresolved_gaps`.
 
-No page should enter production while `required_data_points`, `quantification`, `comparison_basis` or `benchmark` is empty, except covers, section dividers and explicitly requested conceptual pages.
+No page should enter production while its required evidence contract is incomplete, except covers, section dividers and explicitly requested conceptual pages.
 
 ## Appendix standard
 
-The appendix is part of the analytical product, not a dumping ground. Use it for:
-
-- source tables and definitions;
-- detailed financial statements and calculations;
-- full peer-comparison tables;
-- methodology and scoring rationale;
-- sensitivity and scenario outputs;
-- technical architecture detail;
-- implementation workplan and RACI;
-- counter-evidence and rejected alternatives;
-- data limitations and assumptions.
-
-Every appendix page should be referenced from at least one core page or explicitly labeled as general backup.
+Use the appendix for source tables and definitions, detailed statements and calculations, full peer or jurisdiction tables, methodology, sensitivities, technical detail, workplans, counter-evidence and assumptions. Every appendix page should be referenced from a core page or explicitly labeled general backup.
 
 ## Density without clutter
 
-Do not solve content gaps by shrinking fonts or pasting long paragraphs. Increase analytical density through:
+Do not solve content gaps by shrinking fonts or pasting long paragraphs. Increase analytical density through readable tables, small multiples, chart-plus-table combinations, benchmark bars, bridges, annotated charts, side-by-side comparisons, driver trees, scenario tables, audited maps, insight rails and appendix links.
 
-- dense but readable summary tables;
-- small multiples;
-- chart-plus-data-table combinations;
-- benchmark bars;
-- variance bridges;
-- annotated charts;
-- side-by-side comparisons;
-- quantified driver trees;
-- scenario tables;
-- insight rails;
-- appendix links.
-
-If a page cannot remain readable at the design-token font sizes, split the analysis across two pages rather than reducing the font below the approved minimum.
+If a page cannot remain readable at approved font sizes, split it rather than reducing the font below the design minimum.
 
 ## Completion gate
 
-Before page production, the main agent must confirm:
+Before production, the main agent must confirm:
 
 - every core page has a defined comparison or analytical method;
-- every analytical page has a concrete quantification and benchmark;
+- every analytical page has a concrete quantification/benchmark or approved qualitative-exhibit contract;
 - every major conclusion has enough evidence to survive challenge;
+- data-driven exhibits have planned manifest outputs and semantic QA;
 - the deck contains quantified impact, implementation detail and risk conditions;
-- appendix coverage is planned rather than added at the end;
+- appendix coverage is planned;
 - no page exists solely because it is common in a consulting template;
-- data-density pressure has not led to invented or weakly supported numbers.
+- density pressure has not led to invented or weakly supported numbers.
 
-A deck that is visually polished but fails these checks is incomplete.
+A visually polished deck that fails these checks is incomplete.
