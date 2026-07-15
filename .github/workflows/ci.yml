@@ -120,4 +120,14 @@ jobs:
           if-no-files-found: error
 
       - name: Run tests
-        run: pytest tests/ -q
+        run: |
+          set -o pipefail
+          pytest tests/ -q --tb=short 2>&1 | tee pytest-results.txt
+
+      - name: Upload pytest report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pytest-results
+          path: pytest-results.txt
+          if-no-files-found: error
